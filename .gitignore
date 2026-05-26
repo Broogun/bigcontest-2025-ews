@@ -1,4 +1,5 @@
 # 원본 데이터 (대회 규정상 업로드 금지)
+big_data_set*.csv
 data/big_data_set*.csv
 data/*.csv
 
