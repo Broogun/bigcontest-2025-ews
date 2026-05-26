@@ -1,0 +1,42 @@
+# 원본 데이터 (대회 규정상 업로드 금지)
+data/big_data_set*.csv
+data/*.csv
+
+# 중간 산출물
+outputs/*.csv
+p_project_*.csv
+1_p_project_*.csv
+v2_*.csv
+v5_*.csv
+
+# 다른 프로젝트 파일 (응미사)
+응미사_*
+보고서(응미사)*
+(2025빅콘테스트)*
+
+# 루트 노트북 (notebooks/ 분할본으로 대체)
+서울 성동구.ipynb
+
+# Python
+__pycache__/
+*.py[cod]
+.Python
+*.egg-info/
+dist/
+build/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
