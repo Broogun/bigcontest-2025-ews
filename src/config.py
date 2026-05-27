@@ -53,3 +53,23 @@ FEAT_EXTERNAL = ["f_peer_close_ind", "f_peer_close_dist"]
 ALL_FEATS = FEAT_INTERNAL + FEAT_COMPETITIVE + FEAT_EXTERNAL
 
 PEER_GROUP_COL = "HPSN_MCT_BZN_CD_NM"   # 상권 기준 피어 그룹
+
+# ── ML 모델 파라미터 (LightGBM 최적, 04_ml_baseline RandomizedSearchCV 결과) ──
+DW_PREFIX = "dw_"   # ML 피처 컬럼 접두사 (스냅샷 내 dw_f_* 컬럼)
+
+LGB_BEST_PARAMS = {
+    "subsample": 0.6,
+    "reg_lambda": 0.1,
+    "reg_alpha": 0.1,
+    "num_leaves": 15,
+    "n_estimators": 200,
+    "min_child_samples": 10,
+    "max_depth": 6,
+    "learning_rate": 0.2,
+    "colsample_bytree": 0.6,
+    "class_weight": "balanced",
+    "random_state": 42,
+    "verbose": -1,
+}
+
+OUT_SNAPSHOT_ML = "p_project_snapshot_ml.csv"  # ML 예측 점수 포함 스냅샷

@@ -151,6 +151,14 @@ rank_cols = [c for c in df.columns if c.startswith("rank_f_")]
 with st.sidebar:
     st.markdown("## 🔔 성동구 EWS")
     st.caption("영세/중소 요식 가맹점 경영위기 조기경보 시스템")
+    st.markdown("""
+    <div style="background:#EFF6FF; border-radius:8px; padding:9px 12px;
+         font-size:0.78rem; color:#1E40AF; margin-top:4px;">
+    🤖 <b>탐지</b>: LightGBM AUC 0.797<br>
+    📐 <b>해석</b>: EWS 튜닝 AUC 0.737<br>
+    📅 전향적 검증: 2023→2024 AUC 0.611
+    </div>
+    """, unsafe_allow_html=True)
     st.divider()
 
     grade_order = ["위험", "경고", "주의", "정상"]
@@ -431,13 +439,14 @@ with tab3:
             """, unsafe_allow_html=True)
 
         # 서비스 플로우
-        st.markdown("### 🔄 EWS 기반 금융 서비스 흐름")
+        st.markdown("### 🔄 두 트랙 기반 금융 서비스 흐름")
         st.markdown(f"""
         <div style="background:#F8FAFC; padding:15px 18px; border-radius:10px;
              border:1px solid #E2E8F0; font-size:0.88rem; line-height:2.1; color:#334155;">
         📡 <b>데이터 수집</b> (매월 카드사·POS 데이터)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        🤖 <b>EWS 모델</b> — 위험 점수 산출 (Rank-based)<br>
+        🤖 <b>탐지 트랙</b> — LightGBM (AUC 0.797) 고위험 점포 식별<br>
+        📐 <b>해석 트랙</b> — EWS 튜닝 (AUC 0.737) 위험 컴포넌트 분해<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
         🔔 <b>등급 분류</b> — 위험 / 경고 / 주의 / 정상<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
@@ -464,6 +473,9 @@ with tab3:
                 ])
 
                 prompt = f"""당신은 소상공인 경영위기 조기경보 시스템(EWS)의 AI 분석관입니다.
+본 시스템은 두 개의 독립 모델 트랙을 운영합니다:
+  - 탐지 트랙: LightGBM (CV AUC 0.797) — 고위험 점포 식별
+  - 해석 트랙: EWS 튜닝 (AUC 0.737) — 위험 원인 컴포넌트 분해
 이 시스템은 폐업 확률 예측이 아닌 상위 위험군 선별 목적의 순위 기반 조기경보입니다.
 과장·단정·공포 조장 표현을 절대 금지합니다.
 
@@ -477,7 +489,9 @@ with tab3:
 {top3_desc}
 
 [모델 검증 정보 — 리포트에 직접 인용 금지]
-AUC=0.737, Bootstrap 95%CI=[0.653, 0.818], Permutation p<0.001
+LightGBM CV AUC=0.797, EWS AUC=0.737
+Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
+전향적 검증(2023→2024): AUC=0.611, Lift@5%=2.0x
 
 [출력 형식 — 한국어, 600~900자 순수 텍스트]
 1. 진단 요약 (2줄)
@@ -533,11 +547,12 @@ AUC=0.737, Bootstrap 95%CI=[0.653, 0.818], Permutation p<0.001
                     st.markdown(f"""
                     <div style="background:#F8FAFC; padding:12px 14px; border-radius:8px;
                          font-size:0.82rem; color:#64748B;">
-                    <b>📋 모델 검증 근거</b><br>
-                    • 데이터: 2023.01~2024.12 월별 카드거래 (서울 성동구 요식 가맹점 4,183개)<br>
-                    • 모델 AUC: 0.737  |  Bootstrap 95%CI: [0.653, 0.818]<br>
-                    • Permutation test: p &lt; 0.001 (Z = 4.54σ)<br>
-                    • 전향적 검증: 2023 데이터 → 2024 폐업 예측 AUC = 0.611
+                    <b>📋 모델 검증 근거 (두 트랙 아키텍처)</b><br>
+                    • 데이터: 2023.01~2024.12 월별 카드거래 (서울 성동구 요식 가맹점 4,183개 | 폐업 0.72%)<br>
+                    • 🤖 탐지 트랙 (LightGBM): CV AUC <b>0.797</b>  |  Lift@5% 6.0x<br>
+                    • 📐 해석 트랙 (EWS 튜닝): AUC <b>0.737</b>  |  Lift@5% 4.0x<br>
+                    • Permutation test: p &lt; 0.001 (Z = 4.54σ)  |  Bootstrap 95%CI: [0.655, 0.818]<br>
+                    • 전향적 검증: 2023 데이터 → 2024 폐업 예측 AUC = 0.611  |  Lift@5% = 2.0x
                     </div>
                     """, unsafe_allow_html=True)
 
