@@ -10,19 +10,19 @@
 
 1. [연구 배경 및 필요성](#1-연구-배경-및-필요성)
 2. [문제 정의](#2-문제-정의)
-3. [연구 가설 및 차별성](#3-연구-가설-및-차별성)
-4. [전체 시스템 아키텍처](#4-전체-시스템-아키텍처)
+3. [전체 시스템 아키텍처](#3-전체-시스템-아키텍처)
+4. [연구 가설 및 차별성](#4-연구-가설-및-차별성)
 5. [데이터 파이프라인](#5-데이터-파이프라인)
-6. [피처 엔지니어링](#6-피처-엔지니어링)
-7. [모델 설계: 두 개의 트랙](#7-모델-설계-두-개의-트랙)
-8. [앙상블 설계](#8-앙상블-설계)
-9. [주요 EDA 발견](#9-주요-eda-발견)
-10. [SHAP 분석](#10-shap-분석)
-11. [3단계 검증 체계](#11-3단계-검증-체계)
-12. [전체 모델 성능 비교](#12-전체-모델-성능-비교)
-13. [위험 등급 및 맞춤 금융 서비스](#13-위험-등급-및-맞춤-금융-서비스)
-14. [대시보드](#14-대시보드-로컬-실행)
-15. [프로젝트 구조](#15-프로젝트-구조)
+6. [주요 EDA 발견](#6-주요-eda-발견)
+7. [피처 엔지니어링](#7-피처-엔지니어링)
+8. [모델 설계](#8-모델-설계)
+9. [SHAP 분석](#9-shap-분석)
+10. [3단계 검증 체계](#10-3단계-검증-체계)
+11. [전체 모델 성능 비교](#11-전체-모델-성능-비교)
+12. [위험 등급 및 맞춤 금융 서비스](#12-위험-등급-및-맞춤-금융-서비스)
+13. [대시보드](#13-대시보드-로컬-실행)
+14. [프로젝트 구조](#14-프로젝트-구조)
+15. [데이터 및 환경](#15-데이터-및-환경)
 16. [참고문헌](#16-참고문헌)
 
 ---
@@ -78,24 +78,7 @@
 
 ---
 
-## 3. 연구 가설 및 차별성
-
-### 연구 가설
-
-**H1**: 폐업점은 폐업 직전 8개월 동안 거래·매출의 급격한 감소, 고객 구성 불안정, 운영 효율성 저하 등 **내부 행동 변화**가 통계적으로 유의미하게 나타난다.
-
-**H2**: 상권 구조·업종 과밀도 등 외부 환경 요인은 장기적 배경 요인으로 작용하나, 단기 조기경보 관점에서는 **점포 내부 행동 요인**이 더 강력한 선행 신호를 제공한다.
-
-### 차별성
-
-1. **희귀 이벤트 환경 대응** — 폐업률 0.72%에서도 안정적으로 작동하는 순위 기반 조기경보 모델
-2. **정교한 전처리 구조** — Event Window + Temporal Decay (λ=0.75) + Alive Baseline 3중 결합
-3. **두 트랙 아키텍처** — LightGBM(탐지)과 EWS(해석)를 분리하여 실무 활용성과 모델 안정성 동시 확보
-4. **실무형 통합** — 정량적 조기경보 결과를 Claude Haiku 기반 컨설팅 모듈과 결합
-
----
-
-## 4. 전체 시스템 아키텍처
+## 3. 전체 시스템 아키텍처
 
 ```mermaid
 flowchart TD
@@ -125,6 +108,23 @@ flowchart TD
     LGB      -->|"lgb_predictions.csv"| APP
     EWS      --> APP
 ```
+
+---
+
+## 4. 연구 가설 및 차별성
+
+### 연구 가설
+
+**H1**: 폐업점은 폐업 직전 8개월 동안 거래·매출의 급격한 감소, 고객 구성 불안정, 운영 효율성 저하 등 **내부 행동 변화**가 통계적으로 유의미하게 나타난다.
+
+**H2**: 상권 구조·업종 과밀도 등 외부 환경 요인은 장기적 배경 요인으로 작용하나, 단기 조기경보 관점에서는 **점포 내부 행동 요인**이 더 강력한 선행 신호를 제공한다.
+
+### 차별성
+
+1. **희귀 이벤트 환경 대응** — 폐업률 0.72%에서도 안정적으로 작동하는 순위 기반 조기경보 모델
+2. **정교한 전처리 구조** — Event Window + Temporal Decay (λ=0.75) + Alive Baseline 3중 결합
+3. **두 트랙 아키텍처** — LightGBM(탐지)과 EWS(해석)를 분리하여 실무 활용성과 모델 안정성 동시 확보
+4. **실무형 통합** — 정량적 조기경보 결과를 Claude Haiku 기반 컨설팅 모듈과 결합
 
 ---
 
@@ -175,9 +175,41 @@ panel['매출_대비기준'] = panel['매출버킷'] / baseline
 
 ---
 
-## 6. 피처 엔지니어링
+## 6. 주요 EDA 발견
 
-### 6.1 시간감쇠 가중 집계 (Temporal Decay)
+### 폐업 직전 행동 변화 궤적 (H1 채택)
+
+```
+매출 버킷 평균값 (1=최우량, 6=최취약)
+T-12   T-9    T-6    T-3    T-0(폐업)
+ 3.71 ─ 3.72 ─ 3.74 ─ 3.75 ─── 4.43  ← 급등
+                              ↑ 조기경보 골든타임
+```
+
+### 피처 중요도 — Mann-Whitney Effect Size (H2 채택)
+
+> **추세 피처 >> 수준 피처: 2.5배 강한 분리력**
+
+| 피처 | Effect Size | 순위 |
+|------|-------------|------|
+| 매출 추세 (3개월 차분) | 0.247 | 1위 |
+| 재방문율 | 0.183 | 2위 |
+| 거래 추세 | 0.182 | 3위 |
+| 매출 수준 | 0.171 | 4위 |
+
+### 상권별 분석: 매출↑ ≠ 안전
+
+| 상권 | 평균 매출 | 폐업률 | 시사점 |
+|------|-----------|--------|--------|
+| 성수2가 | 높음 | 높음 | 경쟁 과열, 구조적 리스크 |
+| 왕십리 | 높음 | 높음 | 유동 인구 의존도 높아 변동성 큼 |
+| 마장동 | 낮음 | 낮음 | 안정적 단골 기반 상권 |
+
+---
+
+## 7. 피처 엔지니어링
+
+### 7.1 시간감쇠 가중 집계 (Temporal Decay)
 
 ```
 λ = 0.75  (3개월 전 가중치 = 현재의 42%)
@@ -186,7 +218,12 @@ w_t = λ^(T - t)          (t: 현재, T: 관측 시작)
 dw_feature = Σ(w_t × feature_t) / Σ(w_t)
 ```
 
-### 6.2 18개 피처 정의
+### 7.2 18개 피처 구성
+
+내부 10개 · 경쟁 6개 · 외부 2개로 구성됩니다. 각 피처는 감쇠가중(`dw_f_*`) 집계값과 업종·상권 내 백분위(`rank_f_*`) 두 형태로 스냅샷에 저장됩니다.
+
+<details>
+<summary>피처 상세 정의 (클릭해서 보기)</summary>
 
 **내부 신호 (Internal, 10개)**
 
@@ -221,11 +258,13 @@ dw_feature = Σ(w_t × feature_t) / Σ(w_t)
 | `dw_f_peer_close_ind` | 업종 내 주변 폐업 밀도 | 수준이 아닌 변화의 크기만 반영 |
 | `dw_f_peer_close_dist` | 상권 내 주변 폐업 밀도 | 내부 위험 점포에서 조건부 강화 |
 
-### 6.3 스냅샷 구조 (4,183행 × 52컬럼)
+</details>
+
+### 7.3 스냅샷 구조 (4,183행 × 53컬럼)
 
 ```
-ENCODED_MCT, MCT_NM, 업종, 상권          ← 식별 정보 (4)
-dw_f_sales_lvl ~ dw_f_peer_close_dist    ← 감쇠가중 피처 (18)
+ENCODED_MCT, MCT_NM, 업종, 상권           ← 식별 정보 (4)
+dw_f_sales_lvl ~ dw_f_peer_close_dist     ← 감쇠가중 피처 (18)
 rank_f_sales_lvl ~ rank_f_peer_close_dist ← 업종+상권 내 백분위 (18)
 s_int, s_comp, s_ext                      ← EWS 컴포넌트 점수 (3)
 risk_score_opt, risk_rank_opt             ← EWS 최종 점수·등급 (2)
@@ -234,88 +273,16 @@ n_obs_months, is_closed_obs              ← 관측 정보·레이블 (2 + 기�
 
 ---
 
-## 7. 모델 설계
+## 8. 모델 설계
 
 스냅샷의 두 컬럼 그룹이 각각 다른 역할을 담당합니다.
 
 - `dw_f_*` (감쇠가중 집계값) → **ML 분석** — 11개 모델 성능 비교, SHAP 피처 기여도 분석
 - `rank_f_*` + `s_*` + `risk_rank_opt` (백분위 기반 EWS 점수) → **운영 시스템** — 앱의 등급 분류·시각화·AI 리포트
 
-최종 운영 시스템은 **역할 분리 하이브리드**로 구성됩니다. **LightGBM(CV AUC 0.797)**이 전체 4,183개 점포의 위험 등급을 결정하고, **EWS 튜닝(AUC 0.737)**이 위험 원인을 내부·경쟁·외부 3요소로 분해합니다. 앙상블 실험(Voting/Stacking/Hybrid)은 노트북 내 성능 비교 목적으로만 사용되며, 어떤 방식도 LightGBM 단독(0.797)을 초과하지 못했습니다.
+최종 운영 시스템은 **역할 분리 하이브리드**로 구성됩니다. **LightGBM(CV AUC 0.797)**이 전체 4,183개 점포의 위험 등급을 결정하고, **EWS 튜닝(AUC 0.737)**이 위험 원인을 내부·경쟁·외부 3요소로 분해합니다.
 
-### ML 분석: 성능 벤치마크 (notebook 04)
-
-**입력**: `dw_f_*` 18개 피처 (4,183 × 18)  
-**레이블**: `is_closed_obs` (30/4,183 = 0.72%)  
-**검증**: `StratifiedKFold(n_splits=5, shuffle=True, random_state=42)`  
-
-**하이퍼파라미터 (RandomizedSearchCV, n_iter=60)**
-
-| 파라미터 | 최적값 | 탐색 범위 |
-|---------|--------|-----------|
-| `n_estimators` | 200 | [100, 200, 300, 500] |
-| `max_depth` | 6 | [3, 4, 5, 6, 7] |
-| `num_leaves` | 15 | [15, 31, 63] |
-| `learning_rate` | 0.2 | [0.05, 0.1, 0.2] |
-| `subsample` | 0.6 | [0.6, 0.8, 1.0] |
-| `colsample_bytree` | 0.6 | [0.6, 0.8, 1.0] |
-| `min_child_samples` | 10 | [5, 10, 20] |
-| `reg_alpha` | 0.1 | [0, 0.1, 0.5, 1.0] |
-| `reg_lambda` | 0.1 | [0.1, 0.5, 1.0] |
-| `class_weight` | `balanced` | 고정 (불균형 대응) |
-
-**비교 모델 하이퍼파라미터**
-
-<details>
-<summary>RF 튜닝 (클릭해서 보기)</summary>
-
-| 파라미터 | 최적값 |
-|---------|--------|
-| `n_estimators` | 200 |
-| `max_depth` | None |
-| `max_features` | `log2` |
-| `min_samples_split` | 10 |
-| `min_samples_leaf` | 8 |
-| `class_weight` | `balanced` |
-
-</details>
-
-<details>
-<summary>XGBoost 튜닝 (클릭해서 보기)</summary>
-
-| 파라미터 | 최적값 |
-|---------|--------|
-| `n_estimators` | 500 |
-| `max_depth` | 3 |
-| `learning_rate` | 0.1 |
-| `subsample` | 1.0 |
-| `colsample_bytree` | 0.6 |
-| `min_child_weight` | 3 |
-| `gamma` | 0 |
-| `reg_alpha` | 0.5 |
-| `reg_lambda` | 0.5 |
-| `scale_pos_weight` | 139 (불균형 대응) |
-
-</details>
-
-<details>
-<summary>CatBoost 튜닝 (클릭해서 보기)</summary>
-
-| 파라미터 | 최적값 |
-|---------|--------|
-| `iterations` | 200 |
-| `depth` | 8 |
-| `learning_rate` | 0.1 |
-| `l2_leaf_reg` | 10 |
-| `bagging_temperature` | 0.5 |
-| `border_count` | 32 |
-| `auto_class_weights` | `Balanced` |
-
-</details>
-
-### 운영 모델: EWS 튜닝 (app_ews.py에서 실제 사용)
-
-**내부 로직**
+### 8.1 운영 모델: EWS 튜닝
 
 ```
 Step 1. 피처별 업종+상권 내 백분위 rank_f_* 산출
@@ -338,20 +305,81 @@ Step 5. 위험 점수 → 전체 백분위
         risk_rank = percentilerank(risk_score)
 ```
 
-**가중치 최적화 (05_report_tuning)**
-
-RandomSearch (n=500) 로 λ, (w_int, w_comp, w_ext), (임계값) 동시 탐색:
+**가중치 최적화 (05_report_tuning)**: RandomSearch (n=500) 로 λ, (w_int, w_comp, w_ext), 임계값 동시 탐색
 - 최적 λ = **0.75**
 - 최적 가중치 = **(0.65, 0.30, 0.05)**
 - 임계값 = 위험 ≥ **85%ile**, 경고 ≥ **65%ile**, 주의 ≥ **40%ile**
 
----
+### 8.2 ML 분석: LightGBM (notebook 04)
 
-## 8. 앙상블 실험 (성능 비교 목적, notebook 04)
+**입력**: `dw_f_*` 18개 피처 (4,183 × 18)  
+**레이블**: `is_closed_obs` (30/4,183 = 0.72%)  
+**검증**: `StratifiedKFold(n_splits=5, shuffle=True, random_state=42)`
+
+**LightGBM 하이퍼파라미터 (RandomizedSearchCV, n_iter=60)**
+
+| 파라미터 | 최적값 | 탐색 범위 |
+|---------|--------|-----------|
+| `n_estimators` | 200 | [100, 200, 300, 500] |
+| `max_depth` | 6 | [3, 4, 5, 6, 7] |
+| `num_leaves` | 15 | [15, 31, 63] |
+| `learning_rate` | 0.2 | [0.05, 0.1, 0.2] |
+| `subsample` | 0.6 | [0.6, 0.8, 1.0] |
+| `colsample_bytree` | 0.6 | [0.6, 0.8, 1.0] |
+| `min_child_samples` | 10 | [5, 10, 20] |
+| `reg_alpha` | 0.1 | [0, 0.1, 0.5, 1.0] |
+| `reg_lambda` | 0.1 | [0.1, 0.5, 1.0] |
+| `class_weight` | `balanced` | 고정 (불균형 대응) |
+
+<details>
+<summary>비교 모델 하이퍼파라미터 (RF · XGBoost · CatBoost)</summary>
+
+**RF 튜닝**
+
+| 파라미터 | 최적값 |
+|---------|--------|
+| `n_estimators` | 200 |
+| `max_depth` | None |
+| `max_features` | `log2` |
+| `min_samples_split` | 10 |
+| `min_samples_leaf` | 8 |
+| `class_weight` | `balanced` |
+
+**XGBoost 튜닝**
+
+| 파라미터 | 최적값 |
+|---------|--------|
+| `n_estimators` | 500 |
+| `max_depth` | 3 |
+| `learning_rate` | 0.1 |
+| `subsample` | 1.0 |
+| `colsample_bytree` | 0.6 |
+| `min_child_weight` | 3 |
+| `gamma` | 0 |
+| `reg_alpha` | 0.5 |
+| `reg_lambda` | 0.5 |
+| `scale_pos_weight` | 139 (불균형 대응) |
+
+**CatBoost 튜닝**
+
+| 파라미터 | 최적값 |
+|---------|--------|
+| `iterations` | 200 |
+| `depth` | 8 |
+| `learning_rate` | 0.1 |
+| `l2_leaf_reg` | 10 |
+| `bagging_temperature` | 0.5 |
+| `border_count` | 32 |
+| `auto_class_weights` | `Balanced` |
+
+</details>
+
+<details>
+<summary>앙상블 실험 (성능 비교 목적, notebook 04)</summary>
 
 앙상블 세 가지를 모두 테스트했으나, 어떤 방식도 LightGBM 단독(0.797)을 초과하지 못했습니다. 결론적으로 LightGBM 단독이 탐지 트랙, EWS 튜닝이 해석 트랙으로 역할을 분리하는 하이브리드 구조를 채택했습니다.
 
-### Soft Voting (4-Model)
+**Soft Voting (4-Model)**
 
 ```python
 norm01(v) = (v - min) / (max - min)   # 모델별 스케일 통일
@@ -366,7 +394,7 @@ vote_prob = mean([
 
 → CV AUC 0.782 / Lift@5% 6.0x
 
-### Stacking (Meta-LR)
+**Stacking (Meta-LR)**
 
 ```
 Base learners (6개): LR, RF_base, RF_tuned, XGB, LGB, CB
@@ -379,7 +407,7 @@ Meta learner: Logistic Regression (C=0.1)
 → CV AUC **0.697** — 소표본 환경(폐업 30개)에서 meta-learner 학습 불안정  
 → RF 튜닝 메타 계수 +7.94, XGB 메타 계수 -1.86 (RF에 의존, 나머지 기여 미미)
 
-### Hybrid (ML + EWS 혼합)
+**Hybrid (ML + EWS 혼합)**
 
 ```python
 hybrid_prob = 0.30 × norm01(stack_prob) + 0.70 × norm01(ews_opt_prob)
@@ -387,41 +415,11 @@ hybrid_prob = 0.30 × norm01(stack_prob) + 0.70 × norm01(ews_opt_prob)
 
 → CV AUC 0.758 — EWS의 해석 가능성을 유지하면서 ML의 탐지력 일부 흡수
 
----
-
-## 9. 주요 EDA 발견
-
-### 폐업 직전 행동 변화 궤적 (H1 채택)
-
-```
-매출 버킷 평균값 (1=최우량, 6=최취약)
-T-12   T-9    T-6    T-3    T-0(폐업)
- 3.71 ─ 3.72 ─ 3.74 ─ 3.75 ─── 4.43  ← 급등
-                              ↑ 조기경보 골든타임
-```
-
-### 피처 중요도 — Mann-Whitney Effect Size (H2 채택)
-
-> **추세 피처 >> 수준 피처: 2.5배 강한 분리력**
-
-| 피처 | Effect Size | 순위 |
-|------|-------------|------|
-| 매출 추세 (3개월 차분) | 0.247 | 1위 |
-| 재방문율 | 0.183 | 2위 |
-| 거래 추세 | 0.182 | 3위 |
-| 매출 수준 | 0.171 | 4위 |
-
-### 상권별 분석: 매출↑ ≠ 안전
-
-| 상권 | 평균 매출 | 폐업률 | 시사점 |
-|------|-----------|--------|--------|
-| 성수2가 | 높음 | 높음 | 경쟁 과열, 구조적 리스크 |
-| 왕십리 | 높음 | 높음 | 유동 인구 의존도 높아 변동성 큼 |
-| 마장동 | 낮음 | 낮음 | 안정적 단골 기반 상권 |
+</details>
 
 ---
 
-## 10. SHAP 분석
+## 9. SHAP 분석
 
 RF 튜닝 모델 기반 `shap.TreeExplainer` 로 18개 피처 기여도 분석.
 
@@ -445,7 +443,7 @@ shap.waterfall_plot(exp[high_risk_idx])   # 고위험 점포 Top 3 분해
 
 ---
 
-## 11. 3단계 검증 체계
+## 10. 3단계 검증 체계
 
 ```
 ① CV AUC (5-Fold StratifiedKFold)
@@ -469,7 +467,7 @@ shap.waterfall_plot(exp[high_risk_idx])   # 고위험 점포 Top 3 분해
 
 ---
 
-## 12. 전체 모델 성능 비교
+## 11. 전체 모델 성능 비교
 
 > 기저율: **0.72%** (4,183개 중 폐업 30개)
 
@@ -492,7 +490,7 @@ shap.waterfall_plot(exp[high_risk_idx])   # 고위험 점포 Top 3 분해
 
 ---
 
-## 13. 위험 등급 및 맞춤 금융 서비스
+## 12. 위험 등급 및 맞춤 금융 서비스
 
 - **등급 결정**: LightGBM `lgb_rank` — 전체 4,183개 점포 전수 평가, 정상 오분류 0개
 - **원인 설명**: EWS `s_int / s_comp / s_ext` — 3,127개 점포 (74.8%) 적용
@@ -508,7 +506,7 @@ shap.waterfall_plot(exp[high_risk_idx])   # 고위험 점포 Top 3 분해
 
 ---
 
-## 14. 대시보드 (로컬 실행)
+## 13. 대시보드 (로컬 실행)
 
 데이터가 대회 규정상 비공개이므로 퍼블릭 배포 없이 로컬 실행 방식으로 제공합니다.
 
@@ -517,7 +515,7 @@ pip install -r requirements.txt
 
 # 1단계: 노트북 순서대로 실행 (outputs/ 산출물 생성)
 #   01 전처리 → 02 EDA → 03 피처 → 04 ML/SHAP(필수) → 05 튜닝 → 06 검증
-# 2단계: 04 실행 시 outputs/lgb_predictions.csv 자동 생성 → 앱에서 자동 로드
+# 2단계: notebook 04 실행 시 outputs/lgb_predictions.csv 자동 생성
 
 # 3단계: 앱 실행
 cd app
@@ -531,13 +529,13 @@ streamlit run app_ews.py
 
 | 탭 | 기능 |
 |----|------|
-| 📋 종합 진단 | LGB 위험 등급 게이지 + EWS 3-컴포넌트 분해 (내부/경쟁/외부) + Top 5 위험 신호 |
+| 📋 종합 진단 | 위험 등급 게이지 + 위험 요인 분석 (내부/경쟁/외부) + Top 5 위험 신호 |
 | 📊 신호 분석 | 레이더 차트 + 18개 `rank_f_*` 피처 업종별 백분위 상세 |
 | 💳 맞춤 금융 서비스 | 등급별 금융상품 자동 매칭 + Claude Haiku AI 경영 진단 리포트 |
 
 ---
 
-## 15. 프로젝트 구조
+## 14. 프로젝트 구조
 
 ```
 ├── notebooks/
@@ -545,11 +543,12 @@ streamlit run app_ews.py
 │   ├── 02_eda_analysis.ipynb         # Mann-Whitney + 폐업 궤적 + 상권 분석
 │   ├── 03_feature_engineering.ipynb  # Event Window + Alive Baseline + 스냅샷 생성
 │   ├── 04_ml_baseline.ipynb          # LR·RF·XGB·LGB·CB + 앙상블 + SHAP + 3단계 검증
-│   │                                 # └─ STEP 14-1: lgb_predictions.csv 저장 (앱 연동)
+│   │                                 # └─ lgb_predictions.csv 저장 → 앱 자동 로드
 │   ├── 05_report_tuning.ipynb        # EWS 가중치 최적화 (λ=0.75, w=0.65/0.30/0.05)
 │   └── 06_validation.ipynb           # 순열검정 · 부트스트랩 · 전향적 검증
 │
 ├── src/
+│   ├── __init__.py
 │   ├── config.py          # 전역 상수·경로 (EWS 파라미터, LGB_BEST_PARAMS)
 │   ├── preprocessing.py   # load_master / load_sales / load_customer / build_panel
 │   ├── features.py        # add_trend_features / build_snapshot / add_peer_ranks
@@ -557,25 +556,33 @@ streamlit run app_ews.py
 │   └── ml_model.py        # build_lgb_model / cv_predict / evaluate / add_lgb_score
 │
 ├── app/
-│   └── app_ews.py         # Streamlit 대시보드
-│                          #   등급 결정: lgb_rank (LightGBM, notebook 04 실행 시 자동 로드)
-│                          #   원인 설명: s_int / s_comp / s_ext (EWS 튜닝)
-│                          #   AI 리포트: Claude Haiku
+│   ├── app_ews.py         # Streamlit 대시보드
+│   └── requirements.txt   # 앱 전용 경량 의존성
 │
-├── p_project_snapshot.csv        # ML 분석용 스냅샷 (4,183행 × 53컬럼, notebook 03 산출물)
-│                                 # └─ dw_f_*(18) + rank_f_*(18) + risk_score/risk_rank_pct
-├── p_project_snapshot_tuned.csv  # 운영 앱용 스냅샷 (4,183행 × 67컬럼, notebook 05 산출물)
-│                                 # └─ dw_f_*(18) + rank_f_*(18) + s_int/s_comp/s_ext + risk_rank_opt
+├── archive/               # 개발 초안 (gitignore, 레포 미포함)
+│   ├── 서울 성동구.ipynb
+│   └── 응미사_p-실무_코드정리.ipynb
 │
 ├── data/                  # 원본 데이터 (gitignore, 대회 규정상 비공개)
-└── outputs/
-    ├── lgb_predictions.csv       # LightGBM lgb_prob/lgb_rank (notebook 04 실행 시 생성)
-    └── panel_preprocessed.csv   # 전처리된 패널 (notebook 01 산출물)
+│
+├── outputs/               # 노트북 실행 시 자동 생성 (gitignore)
+│   ├── lgb_predictions.csv        # LightGBM lgb_prob / lgb_rank
+│   ├── panel_preprocessed.csv    # 전처리된 패널 (notebook 01)
+│   ├── eda_01~10_*.png            # EDA 시각화 (notebook 02)
+│   └── ml_01~08_*.png             # 모델 성능·SHAP 시각화 (notebook 04)
+│
+├── p_project_snapshot.csv        # ML 분석용 스냅샷 (4,183행 × 53컬럼, notebook 03)
+│                                 # └─ dw_f_*(18) + rank_f_*(18) + risk_score/risk_rank_pct
+├── p_project_snapshot_tuned.csv  # 운영 앱용 스냅샷 (4,183행 × 67컬럼, notebook 05)
+│                                 # └─ dw_f_*(18) + rank_f_*(18) + s_int/s_comp/s_ext + risk_rank_opt
+│
+├── requirements.txt       # 전체 개발 환경 (notebooks + app)
+└── .gitignore
 ```
 
 ---
 
-## 데이터 및 환경
+## 15. 데이터 및 환경
 
 - **데이터**: 빅콘테스트 2025 제공 신한카드 거래 데이터 (서울 성동구, 2023.01–2024.12)
 - **규모**: 요식 가맹점 4,183개, 월별 패널 86,590건, 관측 기간 24개월
@@ -583,8 +590,9 @@ streamlit run app_ews.py
 - **원본 데이터**: 대회 규정에 따라 레포지토리에 포함하지 않습니다.
 
 ```
-Python 3.11 | pandas | numpy | scikit-learn | xgboost | lightgbm | catboost
-shap | plotly | streamlit | anthropic
+Python 3.11 | pandas | numpy | scipy | scikit-learn
+xgboost | lightgbm | catboost | shap
+matplotlib | seaborn | plotly | streamlit | anthropic
 ```
 
 ---
