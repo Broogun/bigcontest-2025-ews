@@ -104,27 +104,69 @@ st.set_page_config(layout="wide", page_title="성동구 EWS Dashboard", page_ico
 
 st.markdown("""
 <style>
-.stApp { background-color: #F1F5F9; }
+/* ── CSS 변수: 라이트 모드 기본값 ──────────────────────────── */
+:root {
+    --bg-app:        #F1F5F9;
+    --bg-card:       #FFFFFF;
+    --bg-subtle:     #F8FAFC;
+    --bg-bar:        #F1F5F9;
+    --border:        #E2E8F0;
+    --text-primary:  #0F172A;
+    --text-heading:  #1E293B;
+    --text-muted:    #64748B;
+    --text-faint:    #94A3B8;
+    --text-body:     #334155;
+    --text-detail:   #475569;
+    --badge-rate-bg: #EFF6FF;
+    --badge-rate-fg: #2563EB;
+    --badge-lim-bg:  #F0FDF4;
+    --badge-lim-fg:  #16A34A;
+}
+/* ── CSS 변수: 다크 모드 오버라이드 ────────────────────────── */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-app:        #0F172A;
+        --bg-card:       #1E293B;
+        --bg-subtle:     #243047;
+        --bg-bar:        #1E293B;
+        --border:        #334155;
+        --text-primary:  #F1F5F9;
+        --text-heading:  #E2E8F0;
+        --text-muted:    #94A3B8;
+        --text-faint:    #64748B;
+        --text-body:     #CBD5E1;
+        --text-detail:   #94A3B8;
+        --badge-rate-bg: #1E3A5F;
+        --badge-rate-fg: #93C5FD;
+        --badge-lim-bg:  #14532D;
+        --badge-lim-fg:  #86EFAC;
+    }
+}
+/* ── 앱 전체 ────────────────────────────────────────────────── */
+.stApp { background-color: var(--bg-app); }
 div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: #FFFFFF; border-radius: 14px;
-    border: 1.5px solid #E2E8F0;
+    background: var(--bg-card); border-radius: 14px;
+    border: 1.5px solid var(--border);
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     padding: 20px; margin-bottom: 16px;
 }
-h1 { color: #0F172A; font-weight: 800; }
-h2 { color: #1E293B; font-weight: 700; }
-h3 { color: #1E293B; font-weight: 700; }
+h1 { color: var(--text-primary); font-weight: 800; }
+h2 { color: var(--text-heading); font-weight: 700; }
+h3 { color: var(--text-heading); font-weight: 700; }
 .risk-badge {
     display: inline-block; padding: 5px 18px;
     border-radius: 30px; font-weight: 800; font-size: 1.4rem;
 }
-.metric-label { color: #64748B; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
+.metric-label { color: var(--text-muted); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
 .metric-value { font-size: 2.2rem; font-weight: 900; line-height: 1.1; }
 .stTabs [data-baseweb="tab"] {
     font-size: 1.05rem; font-weight: 700; height: 48px;
-    border-radius: 8px; border: 1px solid #E5E7EB; padding: 0 22px;
+    border-radius: 8px; border: 1px solid var(--border); padding: 0 22px;
 }
 .stTabs [aria-selected="true"] { background-color: #0F172A !important; color: white !important; }
+@media (prefers-color-scheme: dark) {
+    .stTabs [aria-selected="true"] { background-color: #3B82F6 !important; }
+}
 div.stButton > button {
     background: #2563EB; color: white; border-radius: 10px;
     font-weight: 700; font-size: 1.05rem; border: none; width: 100%; padding: 13px;
@@ -238,13 +280,13 @@ with tab1:
                      style="background:{color}22; color:{color}; border:2px solid {color};">
                     {meta['emoji']} {grade}
                 </div>
-                <div style="margin-top:14px; font-size:0.85rem; color:#64748B;">
+                <div style="margin-top:14px; font-size:0.85rem; color:var(--text-muted);">
                     {score_label}
                 </div>
                 <div style="font-size:2.8rem; font-weight:900; color:{color}; line-height:1.1;">
                     {grade_rank:.1f}<span style="font-size:1rem;">%ile</span>
                 </div>
-                <div style="font-size:0.8rem; color:#94A3B8; margin-top:4px;">
+                <div style="font-size:0.8rem; color:var(--text-faint); margin-top:4px;">
                     상위 {100-grade_rank:.1f}% 보다 위험
                 </div>
             </div>
@@ -278,7 +320,7 @@ with tab1:
 
             # 범례
             st.markdown("""
-            <div style="font-size:0.78rem; color:#64748B; line-height:1.8;">
+            <div style="font-size:0.78rem; color:var(--text-muted); line-height:1.8;">
             🟢 정상 &lt;40  🔵 주의 40~65  🟡 경고 65~85  🔴 위험 ≥85
             </div>
             """, unsafe_allow_html=True)
@@ -303,7 +345,7 @@ with tab1:
                     <div style="text-align:center;">
                         <div class="metric-label">{label}</div>
                         <div class="metric-value" style="color:{s_c};">{s_disp}</div>
-                        <div style="font-size:0.78rem; color:#94A3B8; margin:4px 0;">{desc}</div>
+                        <div style="font-size:0.78rem; color:var(--text-faint); margin:4px 0;">{desc}</div>
                         <div style="font-size:0.9rem; font-weight:700; color:{s_c};">{s_g}</div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -325,9 +367,9 @@ with tab1:
             fig_bar.add_vline(x=85, line_dash="dash", line_color="#EF4444", annotation_text="위험선")
             fig_bar.update_layout(
                 height=230, margin=dict(l=10, r=80, t=10, b=10),
-                xaxis=dict(range=[0, 120], showgrid=True, gridcolor="#F1F5F9"),
+                xaxis=dict(range=[0, 120], showgrid=True, gridcolor="rgba(128,128,128,0.15)"),
                 yaxis=dict(tickfont=dict(size=12)),
-                plot_bgcolor="white", paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             )
             st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -401,7 +443,7 @@ with tab2:
                                 {val:.1f}%ile · {g_f}
                             </span>
                         </div>
-                        <div style="background:#F1F5F9; border-radius:4px; height:7px; overflow:hidden;">
+                        <div style="background:var(--bg-bar); border-radius:4px; height:7px; overflow:hidden;">
                             <div style="width:{pct}%; background:{c_f}; height:100%; border-radius:4px;"></div>
                         </div>
                     </div>
@@ -419,7 +461,7 @@ with tab3:
         st.markdown("### 💳 위험 등급별 맞춤 금융상품")
 
         st.markdown(f"""
-        <div style="background:{meta['bg']}; border-left:5px solid {color};
+        <div style="background:{color}18; border-left:5px solid {color};
              padding:13px 16px; border-radius:8px; margin-bottom:18px;">
             <b>{meta['emoji']} 현재 등급: {grade}</b> — {meta['action']}
         </div>
@@ -427,21 +469,21 @@ with tab3:
 
         for p in PRODUCTS.get(grade, []):
             st.markdown(f"""
-            <div style="background:#F8FAFC; border:1px solid #E2E8F0;
+            <div style="background:var(--bg-subtle); border:1px solid var(--border);
                  border-radius:10px; padding:13px 16px; margin-bottom:10px;">
-                <div style="font-weight:800; font-size:1.0rem; color:#0F172A;">{p['name']}</div>
-                <div style="color:#64748B; font-size:0.82rem; margin:3px 0;">{p['org']}</div>
+                <div style="font-weight:800; font-size:1.0rem; color:var(--text-primary);">{p['name']}</div>
+                <div style="color:var(--text-muted); font-size:0.82rem; margin:3px 0;">{p['org']}</div>
                 <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
-                    <span style="background:#EFF6FF; color:#2563EB; padding:2px 10px;
+                    <span style="background:var(--badge-rate-bg); color:var(--badge-rate-fg); padding:2px 10px;
                           border-radius:20px; font-size:0.8rem; font-weight:600;">
                         💰 {p['rate']}
                     </span>
-                    <span style="background:#F0FDF4; color:#16A34A; padding:2px 10px;
+                    <span style="background:var(--badge-lim-bg); color:var(--badge-lim-fg); padding:2px 10px;
                           border-radius:20px; font-size:0.8rem; font-weight:600;">
                         📋 {p['limit']}
                     </span>
                 </div>
-                <div style="margin-top:8px; font-size:0.83rem; color:#475569;">
+                <div style="margin-top:8px; font-size:0.83rem; color:var(--text-detail);">
                     💡 {p['note']}
                 </div>
             </div>
@@ -450,8 +492,8 @@ with tab3:
         # 서비스 플로우
         st.markdown("### 금융 서비스 흐름")
         st.markdown("""
-        <div style="background:#F8FAFC; padding:15px 18px; border-radius:10px;
-             border:1px solid #E2E8F0; font-size:0.88rem; line-height:2.1; color:#334155;">
+        <div style="background:var(--bg-subtle); padding:15px 18px; border-radius:10px;
+             border:1px solid var(--border); font-size:0.88rem; line-height:2.1; color:var(--text-body);">
         📡 <b>데이터 수집</b> (매월 카드사·POS 데이터)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
         🔔 <b>위험 등급 산정</b> — 위험 / 경고 / 주의 / 정상<br>
@@ -547,8 +589,8 @@ Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
         else:
             st.info("버튼을 클릭하면 AI가 현재 점포 상황을 분석하고 맞춤 금융상품을 추천합니다.")
             st.markdown(f"""
-            <div style="background:#F8FAFC; padding:15px; border-radius:10px;
-                 border:1px solid #E2E8F0; margin-top:10px; font-size:0.9rem; color:#475569; line-height:1.9;">
+            <div style="background:var(--bg-subtle); padding:15px; border-radius:10px;
+                 border:1px solid var(--border); margin-top:10px; font-size:0.9rem; color:var(--text-detail); line-height:1.9;">
             <b>📝 리포트 구성</b><br>
             &nbsp;① 진단 요약 — 현재 위험 수준 핵심 해석<br>
             &nbsp;② 관측 신호 — 데이터 기반 객관적 수치<br>
