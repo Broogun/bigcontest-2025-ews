@@ -7,7 +7,7 @@ import plotly.express as px
 
 # ── 0. 설정 ────────────────────────────────────────────────────────────────────
 # EWS 스냅샷: rank_f_*, s_int/comp/ext, risk_rank_opt (원인 설명용)
-DATA_PATH = os.path.join(os.path.dirname(__file__), "p_project_snapshot_tuned.csv")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "p_project_snapshot_tuned.csv")
 # LightGBM 예측값: lgb_prob, lgb_rank (위험 등급 결정용)  — notebook 04 실행 시 생성
 LGB_PATH  = os.path.join(os.path.dirname(__file__), "..", "outputs", "lgb_predictions.csv")
 

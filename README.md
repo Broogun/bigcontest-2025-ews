@@ -97,48 +97,38 @@
 
 ## 4. 전체 시스템 아키텍처
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         원시 데이터                              │
-│  dataset1 (점포 마스터, 4,183행)                                  │
-│  dataset2 (월별 매출, ~86,590행)  ← 버킷 6단계, 2023.01-2024.12  │
-│  dataset3 (월별 고객, ~86,590행)  ← 재방문율, 유동/주거 구성        │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ outer join + sentinel 처리
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    패널 데이터 (86,590행)                         │
-│  점포 × 월 단위 | is_closed_obs 레이블 join | tenure_months 계산  │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ Event Window + Alive Baseline + Temporal Decay
-                           │ build_snapshot()
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              스냅샷 (4,183행 × 52컬럼)  ← 모든 분석의 기반         │
-│                                                                 │
-│  dw_f_*  (18개)  ← 감쇠가중 집계 피처     (ML 학습 입력)           │
-│  rank_f_* (18개) ← 업종+상권 내 백분위    (EWS 컴포넌트 계산 입력)  │
-│  s_int / s_comp / s_ext               (EWS 컴포넌트 점수)        │
-│  risk_rank_opt                        (EWS 최종 위험 등급)        │
-└──────────────────────┬───────────────────────┬─────────────────┘
-                       │                       │
-          ┌────────────┘                       └────────────┐
-          ▼                                                 ▼
-┌─────────────────────────┐                 ┌──────────────────────────┐
-│  ML 분석 (notebook 04)   │                 │  운영 모델 (app_ews.py)   │
-│                         │    lgb_rank      │                          │
-│  · LightGBM 최적 성능     │  ─────────────▶ │  🎯 위험 등급 결정          │
-│    CV AUC 0.797          │  (outputs/       │    lgb_rank 기반           │
-│  · lgb_prob, lgb_rank    │   lgb_predictions│    (LightGBM 0.797)       │
-│    저장 → outputs/        │   .csv)          │                          │
-│                         │                 │  📐 원인 설명 (EWS)          │
-│  · SHAP 피처 기여도       │                 │    s_int / s_comp / s_ext  │
-│  · 앙상블 성능 실험        │                 │    rank_f_* 18개 백분위     │
-│    (성능 비교 목적)        │                 │                          │
-│  · 11개 모델 비교          │                 │  🤖 AI 리포트 (Claude Haiku)│
-└─────────────────────────┘                 │  💳 맞춤 금융상품 매칭        │
-                                            └──────────────────────────┘
-                                                  최종 운영 시스템
+```mermaid
+flowchart TD
+    RAW["원시 데이터
+    dataset1 · 점포 마스터 · 4,183행
+    dataset2 · 월별 매출 · ~86,590행 · 버킷 6단계 · 2023.01–2024.12
+    dataset3 · 월별 고객 · ~86,590행 · 재방문율 · 유동/주거 구성"]
+
+    PANEL["패널 데이터 (86,590행)
+    점포 × 월 단위 · is_closed_obs 레이블 · tenure_months"]
+
+    SNAP["스냅샷 (4,183행) — 모든 분석의 기반
+    dw_f_×18  감쇠가중 집계 피처  →  ML 학습 입력
+    rank_f_×18  업종·상권 내 백분위  →  EWS 컴포넌트 계산
+    s_int / s_comp / s_ext  ·  risk_rank_opt"]
+
+    ML["ML 분석 (notebook 04)
+    · LightGBM  CV AUC 0.797
+    · lgb_prob / lgb_rank → outputs/
+    · SHAP 피처 기여도
+    · 앙상블 실험 · 11개 모델 비교"]
+
+    APP["운영 앱 (app_ews.py)
+    🎯 위험 등급 결정 · lgb_rank 기반 · AUC 0.797
+    📐 원인 설명 · s_int / s_comp / s_ext · rank_f_×18
+    🤖 AI 리포트 (Claude Haiku)
+    💳 맞춤 금융상품 매칭"]
+
+    RAW      -->|"outer join + sentinel 처리"| PANEL
+    PANEL    -->|"Event Window · Alive Baseline · Temporal Decay λ=0.75"| SNAP
+    SNAP     --> ML
+    SNAP     --> APP
+    ML       -->|"lgb_rank → lgb_predictions.csv"| APP
 ```
 
 ---
@@ -256,7 +246,7 @@ n_obs_months, is_closed_obs              ← 관측 정보·레이블 (2 + 기�
 - `dw_f_*` (감쇠가중 집계값) → **ML 분석** — 11개 모델 성능 비교, SHAP 피처 기여도 분석
 - `rank_f_*` + `s_*` + `risk_rank_opt` (백분위 기반 EWS 점수) → **운영 시스템** — 앱의 등급 분류·시각화·AI 리포트
 
-ML 모델(LightGBM AUC 0.797)은 EWS 모델(AUC 0.737)이 통계적으로 유의미한 성능을 가짐을 독립 검증하는 역할을 하며, 앙상블 실험(Voting/Stacking/Hybrid)은 모두 노트북 내 성능 비교 용도입니다. 최종 운영 모델은 EWS 튜닝 점수(`risk_rank_opt`)입니다.
+최종 운영 시스템은 **역할 분리 하이브리드**로 구성됩니다. **LightGBM(CV AUC 0.797)**이 전체 4,183개 점포의 위험 등급을 결정하고, **EWS 튜닝(AUC 0.737)**이 위험 원인을 내부·경쟁·외부 3요소로 분해합니다. 앙상블 실험(Voting/Stacking/Hybrid)은 노트북 내 성능 비교 목적으로만 사용되며, 어떤 방식도 LightGBM 단독(0.797)을 초과하지 못했습니다.
 
 ### ML 분석: 성능 벤치마크 (notebook 04)
 
@@ -364,7 +354,7 @@ RandomSearch (n=500) 로 λ, (w_int, w_comp, w_ext), (임계값) 동시 탐색:
 
 ## 8. 앙상블 실험 (성능 비교 목적, notebook 04)
 
-앙상블 세 가지를 모두 테스트했으나, 어떤 방식도 LightGBM 단독(0.797)을 넘지 못했습니다. 최종 운영 모델은 EWS 튜닝입니다.
+앙상블 세 가지를 모두 테스트했으나, 어떤 방식도 LightGBM 단독(0.797)을 초과하지 못했습니다. 결론적으로 LightGBM 단독이 탐지 트랙, EWS 튜닝이 해석 트랙으로 역할을 분리하는 하이브리드 구조를 채택했습니다.
 
 ### Soft Voting (4-Model)
 
@@ -492,26 +482,34 @@ shap.waterfall_plot(exp[high_risk_idx])   # 고위험 점포 Top 3 분해
 |------|--------|---------|------|
 | 로지스틱 회귀 | 0.642 | 2.0x | 베이스라인 |
 | EWS 기본 | 0.668 | 2.7x | λ=0.75, 균등 가중 |
-| **EWS 튜닝 ★** | **0.737** | **4.0x** | 3단계 최적화 (해석 트랙) |
+| **EWS 튜닝 ★** | **0.737** | **4.0x** | 3단계 최적화 — **해석 트랙 (원인 설명)** |
 | RF 기본 | 0.725 | 6.0x | |
 | RF 튜닝 | 0.770 | 6.7x | RandomizedSearchCV |
 | XGBoost | 0.787 | 6.7x | |
-| **LightGBM ★** | **0.797** | **6.0x** | 최고 CV AUC (탐지 트랙) |
+| **LightGBM ★** | **0.797** | **6.0x** | 최고 CV AUC — **탐지 트랙 (등급 결정)** |
 | CatBoost | 0.770 | 6.7x | |
 | Soft Voting (4-Model) | 0.782 | 6.0x | RF+XGB+LGB+CB |
-| Stacking (meta-LR) | 0.697 | 6.0x | 소표본 환경 불리 |
+| Stacking (meta-LR) | 0.697 | 6.0x | 소표본 환경 불리 (폐업 30개) |
 | Hybrid (ML 30% + EWS 70%) | 0.758 | 6.0x | |
+
+> **★ 최종 운영 시스템**: LightGBM(등급 결정) + EWS 튜닝(원인 설명) 역할 분리 하이브리드  
+> 실제 폐업 30개 기준 — LGB: 정상 오분류 **0개** | EWS: 정상 오분류 1개 + 평가불가 11개
 
 ---
 
 ## 13. 위험 등급 및 맞춤 금융 서비스
 
-| 등급 | 임계값 | 점포 수 | 연계 금융상품 |
-|------|--------|---------|---------------|
-| 🔴 위험 | ≥ 85%ile | 476개 (15.2%) | 긴급경영안정자금 (소진공, 연 2.0%) |
-| 🟡 경고 | ≥ 65%ile | 624개 (20.0%) | 소상공인 정책자금 (소진공, 연 3.5%) |
-| 🔵 주의 | ≥ 40%ile | 782개 (25.0%) | EWS 연계 금리우대대출 (0.5%p 차감) |
-| 🟢 정상 | < 40%ile | 1,245개 (39.8%) | 소상공인 성장자금 (우대금리) |
+- **등급 결정**: LightGBM `lgb_rank` — 전체 4,183개 점포 전수 평가, 정상 오분류 0개
+- **원인 설명**: EWS `s_int / s_comp / s_ext` — 3,127개 점포 (74.8%) 적용
+
+| 등급 | 임계값 | 점포 수 (LGB 기준) | Lift | 연계 금융상품 |
+|------|--------|--------------------|------|---------------|
+| 🔴 위험 | ≥ 85%ile | **628개 (15.0%)** | 3.3x | 긴급경영안정자금 (소진공, 연 2.0%) |
+| 🟡 경고 | ≥ 65%ile | 837개 (20.0%) | 1.0x | 소상공인 정책자금 (소진공, 연 3.5%) |
+| 🔵 주의 | ≥ 40%ile | 1,045개 (25.0%) | 1.2x | EWS 연계 금리우대대출 (0.5%p 차감) |
+| 🟢 정상 | < 40%ile | 1,673개 (40.0%) | 0.0x | 소상공인 성장자금 (우대금리) |
+
+> **Lift@5% (상위 209개 집중 경보)**: LightGBM **6.0x** | EWS 4.0x — 한정된 현장 자원을 LGB 상위 리스트에 투입 시 탐지 효율 50% 우위
 
 ---
 
@@ -522,20 +520,24 @@ shap.waterfall_plot(exp[high_risk_idx])   # 고위험 점포 Top 3 분해
 ```bash
 pip install -r requirements.txt
 
-# 노트북 순서대로 실행 (outputs/ 산출물 생성)
-# 01 전처리 → 02 EDA → 03 피처 → 04 ML/SHAP → 05 튜닝 → 06 검증
+# 1단계: 노트북 순서대로 실행 (outputs/ 산출물 생성)
+#   01 전처리 → 02 EDA → 03 피처 → 04 ML/SHAP(필수) → 05 튜닝 → 06 검증
+# 2단계: 04 실행 시 outputs/lgb_predictions.csv 자동 생성 → 앱에서 자동 로드
 
+# 3단계: 앱 실행
 cd app
 streamlit run app_ews.py
 # → http://localhost:8502
 ```
 
+> **notebook 04를 실행하지 않으면** LightGBM 점수가 없어 EWS 폴백 모드로 동작합니다.
+
 **대시보드 기능**
 
 | 탭 | 기능 |
 |----|------|
-| 📋 종합 진단 | 위험 등급 게이지 + 3-컴포넌트 분해 + Top 5 위험 신호 |
-| 📊 신호 분석 | 레이더 차트 + 18개 피처 전체 업종별 백분위 |
+| 📋 종합 진단 | LGB 위험 등급 게이지 + EWS 3-컴포넌트 분해 (내부/경쟁/외부) + Top 5 위험 신호 |
+| 📊 신호 분석 | 레이더 차트 + 18개 `rank_f_*` 피처 업종별 백분위 상세 |
 | 💳 맞춤 금융 서비스 | 등급별 금융상품 자동 매칭 + Claude Haiku AI 경영 진단 리포트 |
 
 ---
@@ -548,7 +550,8 @@ streamlit run app_ews.py
 │   ├── 02_eda_analysis.ipynb         # Mann-Whitney + 폐업 궤적 + 상권 분석
 │   ├── 03_feature_engineering.ipynb  # Event Window + Alive Baseline + 스냅샷 생성
 │   ├── 04_ml_baseline.ipynb          # LR·RF·XGB·LGB·CB + 앙상블 + SHAP + 3단계 검증
-│   ├── 05_report_tuning.ipynb        # EWS 가중치 최적화 + LLM 리포트 템플릿
+│   │                                 # └─ STEP 14-1: lgb_predictions.csv 저장 (앱 연동)
+│   ├── 05_report_tuning.ipynb        # EWS 가중치 최적화 (λ=0.75, w=0.65/0.30/0.05)
 │   └── 06_validation.ipynb           # 순열검정 · 부트스트랩 · 전향적 검증
 │
 ├── src/
@@ -559,10 +562,20 @@ streamlit run app_ews.py
 │   └── ml_model.py        # build_lgb_model / cv_predict / evaluate / add_lgb_score
 │
 ├── app/
-│   └── app_ews.py         # Streamlit 대시보드 (EWS 점수 기반 + Claude Haiku AI 리포트)
+│   └── app_ews.py         # Streamlit 대시보드
+│                          #   등급 결정: lgb_rank (LightGBM, notebook 04 실행 시 자동 로드)
+│                          #   원인 설명: s_int / s_comp / s_ext (EWS 튜닝)
+│                          #   AI 리포트: Claude Haiku
+│
+├── p_project_snapshot.csv        # ML 분석용 스냅샷 (4,183행 × 53컬럼, notebook 03 산출물)
+│                                 # └─ dw_f_*(18) + rank_f_*(18) + risk_score/risk_rank_pct
+├── p_project_snapshot_tuned.csv  # 운영 앱용 스냅샷 (4,183행 × 67컬럼, notebook 05 산출물)
+│                                 # └─ dw_f_*(18) + rank_f_*(18) + s_int/s_comp/s_ext + risk_rank_opt
 │
 ├── data/                  # 원본 데이터 (gitignore, 대회 규정상 비공개)
-└── outputs/               # 분석 산출물 (gitignore, 노트북 실행 시 자동 생성)
+└── outputs/
+    ├── lgb_predictions.csv       # LightGBM lgb_prob/lgb_rank (notebook 04 실행 시 생성)
+    └── panel_preprocessed.csv   # 전처리된 패널 (notebook 01 산출물)
 ```
 
 ---
