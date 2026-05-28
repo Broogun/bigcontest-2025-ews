@@ -230,7 +230,7 @@ with tab1:
     # ── 왼쪽: 등급 게이지 ─────────────────────────────────────
     with col_l:
         with st.container(border=True):
-            score_label = "LightGBM 위험 순위" if using_lgb else "EWS 위험 순위"
+            score_label = "경영위기 위험 순위"
             st.markdown(f"""
             <div style="text-align:center; padding:8px 0;">
                 <div class="metric-label" style="margin-bottom:8px;">종합 위기 등급</div>
@@ -286,7 +286,7 @@ with tab1:
     # ── 오른쪽: 컴포넌트 + Top 신호 ──────────────────────────
     with col_r:
         # 3개 컴포넌트 카드
-        st.markdown("### 📐 리스크 컴포넌트 분해")
+        st.markdown("### 위험 요인 분석")
         cc1, cc2, cc3 = st.columns(3)
         for col_ui, label, score_col, desc in [
             (cc1, "내부 신호",  "s_int",  "매출 · 거래 · 고객"),
@@ -448,30 +448,23 @@ with tab3:
             """, unsafe_allow_html=True)
 
         # 서비스 플로우
-        st.markdown("### 🔄 두 트랙 기반 금융 서비스 흐름")
-        st.markdown(f"""
+        st.markdown("### 금융 서비스 흐름")
+        st.markdown("""
         <div style="background:#F8FAFC; padding:15px 18px; border-radius:10px;
              border:1px solid #E2E8F0; font-size:0.88rem; line-height:2.1; color:#334155;">
         📡 <b>데이터 수집</b> (매월 카드사·POS 데이터)<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        🤖 <b>탐지 트랙</b> — LightGBM (AUC 0.797) 고위험 점포 식별<br>
-        📐 <b>해석 트랙</b> — EWS 튜닝 (AUC 0.737) 위험 컴포넌트 분해<br>
+        🔔 <b>위험 등급 산정</b> — 위험 / 경고 / 주의 / 정상<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        🔔 <b>등급 분류</b> — 위험 / 경고 / 주의 / 정상<br>
+        📊 <b>AI 리포트</b> — 자동 생성<br>
         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        📊 <b>AI 리포트</b> — 자동 생성 (Claude Haiku)<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        💳 <b>맞춤 금융상품</b> — 자동 매칭 & SMS 알림 발송<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
-        📌 <b>현재 점포 등급:</b>
-        <span style="font-weight:900; color:{color};">{meta['emoji']} {grade}</span>
-        → <b>{PRODUCTS[grade][0]['name'] if PRODUCTS.get(grade) else 'N/A'}</b> 추천
+        💳 <b>맞춤 금융상품</b> — 자동 매칭 & SMS 알림 발송
         </div>
         """, unsafe_allow_html=True)
 
     # ── 오른쪽: AI 리포트 ──────────────────────────────────────
     with col_ai:
-        st.markdown("### 🤖 AI 경영 진단 리포트")
+        st.markdown("### AI 경영 진단 리포트")
 
         if st.button("✨ AI 리포트 생성 (Claude Haiku)"):
             with st.spinner("AI 분석 중 (약 10초)..."):
@@ -481,11 +474,8 @@ with tab3:
                     for c in top_signals[:3]
                 ])
 
-                rank_src = f"LightGBM 탐지 모델 {grade_rank:.1f}%ile" if using_lgb else f"EWS 모델 {grade_rank:.1f}%ile"
+                rank_src = f"위험 순위 {grade_rank:.1f}%ile"
                 prompt = f"""당신은 소상공인 경영위기 조기경보 시스템(EWS)의 AI 분석관입니다.
-본 시스템은 역할 분리 하이브리드 구조로 운영됩니다:
-  - LightGBM (AUC 0.797): 위험 등급 결정 — 탐지 정확도 최우선
-  - EWS 튜닝 (AUC 0.737): 원인 설명 — 내부/경쟁/외부 컴포넌트 분해
 이 시스템은 폐업 확률 예측이 아닌 상위 위험군 선별 목적의 순위 기반 조기경보입니다.
 과장·단정·공포 조장 표현을 절대 금지합니다.
 
@@ -553,19 +543,6 @@ Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
 
                 with st.container(border=True):
                     st.markdown(ai_text)
-                    st.divider()
-                    grade_model = "LightGBM" if using_lgb else "EWS 튜닝 (LGB 예측값 없음 — notebook 04 실행 필요)"
-                    st.markdown(f"""
-                    <div style="background:#F8FAFC; padding:12px 14px; border-radius:8px;
-                         font-size:0.82rem; color:#64748B;">
-                    <b>📋 하이브리드 모델 검증 근거</b><br>
-                    • 데이터: 2023.01~2024.12 월별 카드거래 (서울 성동구 요식 가맹점 4,183개 | 폐업 0.72%)<br>
-                    • 🎯 등급 결정: <b>{grade_model}</b> — CV AUC 0.797  |  Lift@5% 6.0x<br>
-                    • 📐 원인 설명: <b>EWS 튜닝</b> — AUC 0.737  |  내부/경쟁/외부 컴포넌트 분해<br>
-                    • Permutation test: p &lt; 0.001 (Z = 4.54σ)  |  Bootstrap 95%CI: [0.655, 0.818]<br>
-                    • 전향적 검증: 2023 데이터 → 2024 폐업 예측 AUC = 0.611  |  Lift@5% = 2.0x
-                    </div>
-                    """, unsafe_allow_html=True)
 
         else:
             st.info("버튼을 클릭하면 AI가 현재 점포 상황을 분석하고 맞춤 금융상품을 추천합니다.")
