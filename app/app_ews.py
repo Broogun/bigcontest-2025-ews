@@ -6,7 +6,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 # ── 0. 설정 ────────────────────────────────────────────────────────────────────
+# EWS 스냅샷: rank_f_*, s_int/comp/ext, risk_rank_opt (원인 설명용)
 DATA_PATH = os.path.join(os.path.dirname(__file__), "p_project_snapshot_tuned.csv")
+# LightGBM 예측값: lgb_prob, lgb_rank (위험 등급 결정용)  — notebook 04 실행 시 생성
+LGB_PATH  = os.path.join(os.path.dirname(__file__), "..", "outputs", "lgb_predictions.csv")
 
 # API 키: Streamlit Cloud secrets → 환경변수 순으로 로드
 def _get_api_key() -> str:
@@ -134,8 +137,19 @@ div.stButton > button:hover { background: #1D4ED8; }
 @st.cache_data
 def load_data():
     df = pd.read_csv(DATA_PATH)
-    df["grade"] = df["risk_rank_opt"].apply(classify)
-    # 표시명: 점포명 + 업종 + 상권 + ID 뒤 4자리
+
+    # LightGBM 예측값 merge (notebook 04 실행 시 생성)
+    # → lgb_rank 있으면 위험 등급 결정에 사용, 없으면 EWS(risk_rank_opt) 폴백
+    try:
+        lgb = pd.read_csv(LGB_PATH)[["ENCODED_MCT", "lgb_prob", "lgb_rank"]]
+        df  = df.merge(lgb, on="ENCODED_MCT", how="left")
+        df["grade_rank"] = df["lgb_rank"].combine_first(df["risk_rank_opt"])
+        df["using_lgb"]  = df["lgb_rank"].notna()
+    except FileNotFoundError:
+        df["grade_rank"] = df["risk_rank_opt"]
+        df["using_lgb"]  = False
+
+    df["grade"] = df["grade_rank"].apply(classify)
     df["display_name"] = (
         df["MCT_NM"].fillna("").astype(str) + "  |  "
         + df["HPSN_MCT_ZCD_NM"].fillna("").astype(str) + "  "
@@ -184,10 +198,12 @@ with st.sidebar:
         )
 
 # ── 7. 선택 점포 데이터 준비 ───────────────────────────────────────────────────
-row   = df[df["display_name"] == selected].iloc[0]
-grade = row["grade"]
-meta  = GRADE_META[grade]
-color = meta["color"]
+row        = df[df["display_name"] == selected].iloc[0]
+grade      = row["grade"]
+meta       = GRADE_META[grade]
+color      = meta["color"]
+grade_rank = float(row["grade_rank"])          # 등급 결정 기준 백분위
+using_lgb  = bool(row.get("using_lgb", False)) # LightGBM 사용 여부
 
 # 유효한 rank_f_* 컬럼 + Top 위험 신호
 avail_rank = [c for c in rank_cols if c in row.index and pd.notna(row[c])]
@@ -214,6 +230,7 @@ with tab1:
     # ── 왼쪽: 등급 게이지 ─────────────────────────────────────
     with col_l:
         with st.container(border=True):
+            score_label = "LightGBM 위험 순위" if using_lgb else "EWS 위험 순위"
             st.markdown(f"""
             <div style="text-align:center; padding:8px 0;">
                 <div class="metric-label" style="margin-bottom:8px;">종합 위기 등급</div>
@@ -222,13 +239,13 @@ with tab1:
                     {meta['emoji']} {grade}
                 </div>
                 <div style="margin-top:14px; font-size:0.85rem; color:#64748B;">
-                    상권 내 위험 백분위
+                    {score_label}
                 </div>
                 <div style="font-size:2.8rem; font-weight:900; color:{color}; line-height:1.1;">
-                    {row['risk_rank_opt']:.1f}<span style="font-size:1rem;">%ile</span>
+                    {grade_rank:.1f}<span style="font-size:1rem;">%ile</span>
                 </div>
                 <div style="font-size:0.8rem; color:#94A3B8; margin-top:4px;">
-                    상위 {100-row['risk_rank_opt']:.1f}% 보다 위험
+                    상위 {100-grade_rank:.1f}% 보다 위험
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -241,7 +258,7 @@ with tab1:
             ]
             fig_g = go.Figure(go.Indicator(
                 mode="gauge+number",
-                value=row["risk_rank_opt"],
+                value=grade_rank,
                 number={"suffix": "%ile", "font": {"color": color, "size": 28}},
                 gauge={
                     "axis": {"range": [0, 100], "tickfont": {"size": 10}},
@@ -464,17 +481,18 @@ with tab3:
                     for c in top_signals[:3]
                 ])
 
+                rank_src = f"LightGBM 탐지 모델 {grade_rank:.1f}%ile" if using_lgb else f"EWS 모델 {grade_rank:.1f}%ile"
                 prompt = f"""당신은 소상공인 경영위기 조기경보 시스템(EWS)의 AI 분석관입니다.
-본 시스템은 두 개의 독립 모델 트랙을 운영합니다:
-  - 탐지 트랙: LightGBM (CV AUC 0.797) — 고위험 점포 식별
-  - 해석 트랙: EWS 튜닝 (AUC 0.737) — 위험 원인 컴포넌트 분해
+본 시스템은 역할 분리 하이브리드 구조로 운영됩니다:
+  - LightGBM (AUC 0.797): 위험 등급 결정 — 탐지 정확도 최우선
+  - EWS 튜닝 (AUC 0.737): 원인 설명 — 내부/경쟁/외부 컴포넌트 분해
 이 시스템은 폐업 확률 예측이 아닌 상위 위험군 선별 목적의 순위 기반 조기경보입니다.
 과장·단정·공포 조장 표현을 절대 금지합니다.
 
 [점포 정보]
 - 업종: {row['HPSN_MCT_ZCD_NM']}
 - 상권: {row['HPSN_MCT_BZN_CD_NM']}
-- 위험 등급: {grade} (상권 내 {row['risk_rank_opt']:.1f} 백분위)
+- 위험 등급: {grade} ({rank_src})
 - 내부 신호: {row['s_int']:.1f}%ile  |  경쟁 신호: {row['s_comp']:.1f}%ile  |  외부 신호: {row['s_ext']:.1f}%ile
 
 [가장 우려되는 상위 3개 신호]
@@ -536,13 +554,14 @@ Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
                 with st.container(border=True):
                     st.markdown(ai_text)
                     st.divider()
+                    grade_model = "LightGBM" if using_lgb else "EWS 튜닝 (LGB 예측값 없음 — notebook 04 실행 필요)"
                     st.markdown(f"""
                     <div style="background:#F8FAFC; padding:12px 14px; border-radius:8px;
                          font-size:0.82rem; color:#64748B;">
-                    <b>📋 모델 검증 근거 (두 트랙 아키텍처)</b><br>
+                    <b>📋 하이브리드 모델 검증 근거</b><br>
                     • 데이터: 2023.01~2024.12 월별 카드거래 (서울 성동구 요식 가맹점 4,183개 | 폐업 0.72%)<br>
-                    • 🤖 탐지 트랙 (LightGBM): CV AUC <b>0.797</b>  |  Lift@5% 6.0x<br>
-                    • 📐 해석 트랙 (EWS 튜닝): AUC <b>0.737</b>  |  Lift@5% 4.0x<br>
+                    • 🎯 등급 결정: <b>{grade_model}</b> — CV AUC 0.797  |  Lift@5% 6.0x<br>
+                    • 📐 원인 설명: <b>EWS 튜닝</b> — AUC 0.737  |  내부/경쟁/외부 컴포넌트 분해<br>
                     • Permutation test: p &lt; 0.001 (Z = 4.54σ)  |  Bootstrap 95%CI: [0.655, 0.818]<br>
                     • 전향적 검증: 2023 데이터 → 2024 폐업 예측 AUC = 0.611  |  Lift@5% = 2.0x
                     </div>
