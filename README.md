@@ -99,36 +99,31 @@
 
 ```mermaid
 flowchart TD
-    RAW["원시 데이터
-    dataset1 · 점포 마스터 · 4,183행
-    dataset2 · 월별 매출 · ~86,590행 · 버킷 6단계 · 2023.01–2024.12
-    dataset3 · 월별 고객 · ~86,590행 · 재방문율 · 유동/주거 구성"]
+    subgraph SRC["📥 원시 데이터 · 2023.01 – 2024.12"]
+        direction LR
+        D1["점포 마스터\n4,183개"]
+        D2["월별 매출\n86,590행 · 버킷 6단계"]
+        D3["월별 고객\n86,590행 · 재방문율"]
+    end
 
-    PANEL["패널 데이터 (86,590행)
-    점포 × 월 단위 · is_closed_obs 레이블 · tenure_months"]
+    PANEL["🗂 패널 데이터\n86,590행 · 점포 × 월\nis_closed_obs · tenure_months"]
 
-    SNAP["스냅샷 (4,183행) — 모든 분석의 기반
-    dw_f_×18  감쇠가중 집계 피처  →  ML 학습 입력
-    rank_f_×18  업종·상권 내 백분위  →  EWS 컴포넌트 계산
-    s_int / s_comp / s_ext  ·  risk_rank_opt"]
+    SNAP["📊 스냅샷 · 4,183행\ndw_f_ ×18  ·  rank_f_ ×18\ns_int / s_comp / s_ext  ·  risk_rank_opt"]
 
-    ML["ML 분석 (notebook 04)
-    · LightGBM  CV AUC 0.797
-    · lgb_prob / lgb_rank → outputs/
-    · SHAP 피처 기여도
-    · 앙상블 실험 · 11개 모델 비교"]
+    subgraph DUAL["분석 트랙"]
+        direction LR
+        LGB["🎯 탐지 트랙\nLightGBM\nCV AUC 0.797 · Lift@5% 6.0x\n전수 평가 · 정상 오분류 0건"]
+        EWS["🔍 해석 트랙\nEWS 튜닝\nAUC 0.737\n내부 · 경쟁 · 외부 분해"]
+    end
 
-    APP["운영 앱 (app_ews.py)
-    🎯 위험 등급 결정 · lgb_rank 기반 · AUC 0.797
-    📐 원인 설명 · s_int / s_comp / s_ext · rank_f_×18
-    🤖 AI 리포트 (Claude Haiku)
-    💳 맞춤 금융상품 매칭"]
+    APP["🖥 운영 앱 · app_ews.py\n위험 등급  ·  AI 경영 진단  ·  맞춤 금융상품"]
 
-    RAW      -->|"outer join + sentinel 처리"| PANEL
-    PANEL    -->|"Event Window · Alive Baseline · Temporal Decay λ=0.75"| SNAP
-    SNAP     --> ML
-    SNAP     --> APP
-    ML       -->|"lgb_rank → lgb_predictions.csv"| APP
+    SRC      -->|"outer join + sentinel 처리"| PANEL
+    PANEL    -->|"Event Window · Alive Baseline\nTemporal Decay  λ = 0.75"| SNAP
+    SNAP     --> LGB
+    SNAP     --> EWS
+    LGB      -->|"lgb_predictions.csv"| APP
+    EWS      --> APP
 ```
 
 ---
