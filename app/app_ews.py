@@ -151,14 +151,6 @@ rank_cols = [c for c in df.columns if c.startswith("rank_f_")]
 with st.sidebar:
     st.markdown("## 🔔 성동구 EWS")
     st.caption("영세/중소 요식 가맹점 경영위기 조기경보 시스템")
-    st.markdown("""
-    <div style="background:#EFF6FF; border-radius:8px; padding:9px 12px;
-         font-size:0.78rem; color:#1E40AF; margin-top:4px;">
-    🤖 <b>탐지</b>: LightGBM AUC 0.797<br>
-    📐 <b>해석</b>: EWS 튜닝 AUC 0.737<br>
-    📅 전향적 검증: 2023→2024 AUC 0.611
-    </div>
-    """, unsafe_allow_html=True)
     st.divider()
 
     grade_order = ["위험", "경고", "주의", "정상"]
