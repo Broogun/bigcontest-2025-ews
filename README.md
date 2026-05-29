@@ -171,7 +171,7 @@ baseline = panel[is_closed_obs == 0].groupby(['업종', 'TA_YM'])['매출버킷'
 panel['매출_대비기준'] = panel['매출버킷'] / baseline
 ```
 
-폐업점을 기준값 산출에 포함시키면 폐업 예정 점포의 낮은 매출이 기준을 끌어내려 분리력이 희석됩니다.
+폐업점을 기준값 산출에 포함시키면 폐업 예정 점포의 낮은 매출이 기준을 끌어내려 분리력이 희석된다.
 
 ---
 
@@ -220,7 +220,7 @@ dw_feature = Σ(w_t × feature_t) / Σ(w_t)
 
 ### 7.2 18개 피처 구성
 
-내부 10개 · 경쟁 6개 · 외부 2개로 구성됩니다. 각 피처는 감쇠가중(`dw_f_*`) 집계값과 업종·상권 내 백분위(`rank_f_*`) 두 형태로 스냅샷에 저장됩니다.
+내부 10개 · 경쟁 6개 · 외부 2개로 구성된다. 각 피처는 감쇠가중(`dw_f_*`) 집계값과 업종·상권 내 백분위(`rank_f_*`) 두 형태로 스냅샷에 저장된다.
 
 <details>
 <summary>피처 상세 정의 (클릭해서 보기)</summary>
@@ -299,7 +299,7 @@ LightGBM이 예측한 위험 등급의 근거를 내부·경쟁·외부 3개 피
 
 > **두 관점은 앙상블이 아니다.** 예측값을 혼합하거나 합산하지 않는다. 서로 다른 질문에 답하며, 대시보드에 나란히 표시되어 진단의 완전성을 높인다.
 
-### 8.1 운영 모델: EWS 튜닝
+### 8.1 맥락 트랙: EWS 튜닝 알고리즘 (관점 2)
 
 ```
 Step 1. 피처별 업종+상권 내 백분위 rank_f_* 산출
@@ -353,7 +353,7 @@ risk_rank_opt = percentilerank(risk_score_opt | 업종+상권 그룹) × 100
 - 최적 가중치 = **(0.65, 0.30, 0.05)**
 - 임계값 = 위험 ≥ **85%ile**, 경고 ≥ **65%ile**, 주의 ≥ **40%ile**
 
-### 8.2 ML 분석: LightGBM (notebook 04)
+### 8.2 탐지 트랙: LightGBM + SHAP (notebook 04, 관점 1)
 
 **입력**: `dw_f_*` 18개 피처 (4,183 × 18)  
 **레이블**: `is_closed_obs` (30/4,183 = 0.72%)  
@@ -420,7 +420,7 @@ risk_rank_opt = percentilerank(risk_score_opt | 업종+상권 그룹) × 100
 <details>
 <summary>앙상블 실험 (성능 비교 목적, notebook 04)</summary>
 
-앙상블 세 가지를 모두 테스트했으나, 어떤 방식도 LightGBM 단독(0.797)을 초과하지 못했습니다. 결론적으로 LightGBM 단독이 탐지 트랙, EWS 튜닝이 해석 트랙으로 역할을 분리하는 하이브리드 구조를 채택했습니다.
+앙상블 세 가지를 모두 테스트했으나, 어떤 방식도 LightGBM 단독(0.798)을 초과하지 못했다. 결론적으로 LightGBM(탐지·예측 근거)과 EWS(업종 내 또래 비교)를 병렬로 제공하는 두 관점 진단 구조를 채택했다.
 
 **Soft Voting (4-Model)**
 
@@ -435,7 +435,7 @@ vote_prob = mean([
 ])
 ```
 
-→ CV AUC 0.782 / Lift@5% 6.0x
+→ CV AUC 0.780 / Lift@5% 7.3x
 
 **Stacking (Meta-LR)**
 
@@ -447,7 +447,7 @@ Meta learner: Logistic Regression (C=0.1)
     └─ meta feature를 입력으로 최종 예측
 ```
 
-→ CV AUC **0.697** — 소표본 환경(폐업 30개)에서 meta-learner 학습 불안정  
+→ CV AUC **0.679** — 소표본 환경(폐업 30개)에서 meta-learner 학습 불안정  
 → RF 튜닝 메타 계수 +7.94, XGB 메타 계수 -1.86 (RF에 의존, 나머지 기여 미미)
 
 **Hybrid (ML + EWS 혼합)**
@@ -464,11 +464,11 @@ hybrid_prob = 0.30 × norm01(stack_prob) + 0.70 × norm01(ews_opt_prob)
 
 ## 9. SHAP 분석
 
-**탐지 트랙 최종 모델(LightGBM)** 기반 `shap.TreeExplainer` 로 18개 피처 기여도 분석.  
-운영 모델과 설명 모델을 일치시켜 "등급 결정 근거"를 직접 해석합니다.
+**탐지 트랙 최종 모델(LightGBM)** 기반 `shap.TreeExplainer` 로 18개 피처 기여도를 분석한다.  
+등급을 결정한 모델과 설명 모델을 일치시켜 예측 근거를 직접 해석한다.
 
-> LightGBM binary SHAP은 2D 배열(양성 클래스 직접 출력)로 RF의 3D 배열과 구조가 다릅니다.  
-> `ndim == 3` 분기로 두 모델 모두 지원하도록 구현했습니다.
+> LightGBM binary SHAP은 2D 배열(양성 클래스 직접 출력)로 RF의 3D 배열과 구조가 다르다.  
+> `ndim == 3` 분기로 두 모델 모두 지원하도록 구현했다.
 
 ### 전역 피처 중요도 (LightGBM 기준)
 
@@ -486,7 +486,7 @@ hybrid_prob = 0.30 × norm01(stack_prob) + 0.70 × norm01(ews_opt_prob)
 
 ### 개별 점포 설명 (Waterfall Plot)
 
-LightGBM 위험 확률 상위 3개 점포의 폐업 리스크 요인을 분해합니다.
+LightGBM 위험 확률 상위 3개 점포의 폐업 리스크 요인을 분해한다.
 
 ```python
 explainer = shap.TreeExplainer(lgb_rscv.best_estimator_)
@@ -494,7 +494,7 @@ top3_idx  = np.argsort(lgb_prob)[-3:][::-1]
 shap.waterfall_plot(exp1[idx])   # 고위험 점포별 피처 기여도 분해
 ```
 
-각 Waterfall은 **base value(전체 평균 예측)** 에서 출발해 개별 피처가 위험 확률을 얼마나 올리거나 내리는지 보여줍니다. 점포마다 주요 위험 요인이 달라 현장 맞춤형 개입 근거로 활용할 수 있습니다.
+각 Waterfall은 **base value(전체 평균 예측)** 에서 출발해 개별 피처가 위험 확률을 얼마나 올리거나 내리는지 보여준다. 점포마다 주요 위험 요인이 달라 현장 맞춤형 개입 근거로 활용할 수 있다.
 
 ---
 
@@ -526,7 +526,7 @@ shap.waterfall_plot(exp1[idx])   # 고위험 점포별 피처 기여도 분해
           → 0.611이 CI 하한(0.655) 아래로 떨어진 것 자체가 Distribution Shift의 증거
 ```
 
-> Temporal AUC 하락(0.80→0.61)은 **Distribution Shift** 의 자연스러운 반영. 2024년 매크로 경제 환경(금리·소비 변화)이 2023년 학습 데이터에 포함되지 않아 발생하는 현상이며, 모델 실패가 아닙니다.
+> Temporal AUC 하락(0.80→0.61)은 **Distribution Shift** 의 자연스러운 반영이다. 2024년 매크로 경제 환경(금리·소비 변화)이 2023년 학습 데이터에 포함되지 않아 발생하는 현상으로, 모델 실패가 아니다.
 
 ---
 
@@ -538,7 +538,7 @@ shap.waterfall_plot(exp1[idx])   # 고위험 점포별 피처 기여도 분해
 |------|--------|---------|------|
 | 로지스틱 회귀 | 0.605 | 3.3x | 베이스라인 |
 | EWS 기본 | 0.668 | 2.7x | λ=0.75, 균등 가중 |
-| **EWS 튜닝 ★** | **0.737** | **4.0x** | 3단계 최적화 — **해석 트랙 (원인 설명)** |
+| **EWS 튜닝 ★** | **0.737** | **4.0x** | 3단계 최적화 — **맥락 트랙 (업종 내 또래 비교)** |
 | RF 기본 | 0.735 | 5.3x | |
 | RF 튜닝 | 0.764 | 6.7x | RandomizedSearchCV |
 | XGBoost | 0.778 | 7.3x | |
@@ -548,7 +548,7 @@ shap.waterfall_plot(exp1[idx])   # 고위험 점포별 피처 기여도 분해
 | Stacking (meta-LR) | 0.679 | 6.7x | 소표본 환경 불리 (폐업 30개) |
 | Hybrid (ML 30% + EWS 70%) | 0.758 | 5.3x | |
 
-> **★ 최종 운영 시스템**: LightGBM(등급 결정) + EWS 튜닝(원인 설명) 역할 분리 하이브리드  
+> **★ 최종 운영 시스템**: 두 관점 진단 구조 — LightGBM(탐지·SHAP 예측 근거) + EWS 튜닝(업종 내 또래 비교)  
 > 실제 폐업 30개 기준 — LGB: 정상 오분류 **0개** | EWS: 정상 오분류 1개 + 평가불가 11개
 
 ### LightGBM 선택 근거 — CatBoost와의 비교 및 지표 선택의 맥락
@@ -602,7 +602,7 @@ Holdout 95%CI ≈ ±0.25  (test 내 폐업 단 6개)
 ## 12. 위험 등급 및 맞춤 금융 서비스
 
 - **등급 결정**: LightGBM `lgb_rank` — 전체 4,183개 점포 전수 평가, 정상 오분류 0개
-- **원인 설명**: EWS `s_int / s_comp / s_ext` — 3,127개 점포 (74.8%) 적용
+- **업종 내 또래 비교**: EWS `s_int / s_comp / s_ext` — 3,127개 점포 (74.8%) 적용
 
 | 등급 | 임계값 | 점포 수 (LGB 기준) | Lift | 연계 금융상품 |
 |------|--------|--------------------|------|---------------|
@@ -617,7 +617,7 @@ Holdout 95%CI ≈ ±0.25  (test 내 폐업 단 6개)
 
 ## 13. 대시보드 (로컬 실행)
 
-데이터가 대회 규정상 비공개이므로 퍼블릭 배포 없이 로컬 실행 방식으로 제공합니다.
+데이터가 대회 규정상 비공개이므로 퍼블릭 배포 없이 로컬 실행 방식으로 제공한다.
 
 ```bash
 pip install -r requirements.txt
@@ -632,7 +632,7 @@ streamlit run app_ews.py
 # → http://localhost:8502
 ```
 
-> **notebook 04를 실행하지 않으면** LightGBM 점수가 없어 EWS 폴백 모드로 동작합니다.
+> **notebook 04를 실행하지 않으면** LightGBM 점수와 SHAP 그룹이 없어 EWS 폴백 모드로 동작한다.
 
 **대시보드 기능**
 
@@ -675,7 +675,7 @@ streamlit run app_ews.py
 ├── data/                  # 원본 데이터 (gitignore, 대회 규정상 비공개)
 │
 ├── outputs/               # 노트북 실행 시 자동 생성 (gitignore)
-│   ├── lgb_predictions.csv        # LightGBM lgb_prob / lgb_rank
+│   ├── lgb_predictions.csv        # LightGBM lgb_prob / lgb_rank / shap_int_pct / shap_comp_pct / shap_ext_pct
 │   ├── panel_preprocessed.csv    # 전처리된 패널 (notebook 01)
 │   ├── eda_01~10_*.png            # EDA 시각화 (notebook 02)
 │   └── ml_01~08_*.png             # 모델 성능·SHAP 시각화 (notebook 04)
@@ -699,7 +699,7 @@ streamlit run app_ews.py
 - **데이터**: 빅콘테스트 2025 제공 신한카드 거래 데이터 (서울 성동구, 2023.01–2024.12)
 - **규모**: 요식 가맹점 4,183개, 월별 패널 86,590건, 관측 기간 24개월
 - **폐업 비율**: **0.72%** (30개) — 극희귀 이벤트 분류 환경
-- **원본 데이터**: 대회 규정에 따라 레포지토리에 포함하지 않습니다.
+- **원본 데이터**: 대회 규정에 따라 레포지토리에 포함하지 않는다.
 
 ```
 Python 3.11 | pandas | numpy | scipy | scikit-learn
