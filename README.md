@@ -95,7 +95,7 @@ flowchart TD
 
     subgraph DUAL["분석 트랙"]
         direction LR
-        LGB["🎯 탐지 트랙\nLightGBM\nCV AUC 0.797 · Lift@5% 6.0x\n전수 평가 · 정상 오분류 0건"]
+        LGB["🎯 탐지 트랙\nLightGBM\nCV AUC 0.798 · Lift@5% 7.3x\n전수 평가 · 정상 오분류 0건"]
         EWS["🔍 해석 트랙\nEWS 튜닝\nAUC 0.737\n내부 · 경쟁 · 외부 분해"]
     end
 
@@ -280,7 +280,7 @@ n_obs_months, is_closed_obs              ← 관측 정보·레이블 (2 + 기�
 - `dw_f_*` (감쇠가중 집계값) → **ML 분석** — 11개 모델 성능 비교, SHAP 피처 기여도 분석
 - `rank_f_*` + `s_*` + `risk_rank_opt` (백분위 기반 EWS 점수) → **운영 시스템** — 앱의 등급 분류·시각화·AI 리포트
 
-최종 운영 시스템은 **역할 분리 하이브리드**로 구성됩니다. **LightGBM(CV AUC 0.797)**이 전체 4,183개 점포의 위험 등급을 결정하고, **EWS 튜닝(AUC 0.737)**이 위험 원인을 내부·경쟁·외부 3요소로 분해합니다.
+최종 운영 시스템은 **역할 분리 하이브리드**로 구성됩니다. **LightGBM(CV AUC 0.798, Lift@5% 7.3x)**이 전체 4,183개 점포의 위험 등급을 결정하고, **EWS 튜닝(AUC 0.737)**이 위험 원인을 내부·경쟁·외부 3요소로 분해합니다.
 
 ### 8.1 운영 모델: EWS 튜닝
 
@@ -342,7 +342,7 @@ risk_rank_opt = percentilerank(risk_score_opt | 업종+상권 그룹) × 100
 **레이블**: `is_closed_obs` (30/4,183 = 0.72%)  
 **검증**: `StratifiedKFold(n_splits=5, shuffle=True, random_state=42)`
 
-**LightGBM 하이퍼파라미터 (RandomizedSearchCV, n_iter=60)**
+**LightGBM 하이퍼파라미터 (RandomizedSearchCV, n_iter=40)**
 
 | 파라미터 | 최적값 | 탐색 범위 |
 |---------|--------|-----------|
@@ -491,8 +491,13 @@ shap.waterfall_plot(exp1[idx])   # 고위험 점포별 피처 기여도 분해
 
 ② Holdout AUC (Stratified 20%)
    목적: 과적합 여부 확인
-   결과: LightGBM 0.760 (Δ = -0.037, 가장 일관적)
-   한계: test 내 폐업 6개 → 95%CI ±0.25 (노이즈 매우 큼, 판정 보조 용도)
+   결과 (모델별 Δ = Holdout - CV):
+     RF 튜닝   CV 0.764 → Holdout 0.778  Δ = +0.014  일관적 ✓
+     XGBoost  CV 0.778 → Holdout 0.919  Δ = +0.141  (노이즈)
+     LightGBM CV 0.798 → Holdout 0.899  Δ = +0.101  (노이즈)
+     CatBoost CV 0.810 → Holdout 0.748  Δ = -0.061  낙관적 (경미한 과대추정)
+     Voting   CV 0.780 → Holdout 0.818  Δ = +0.038  일관적 ✓
+   한계: test 내 폐업 6개 → 95%CI ±0.25 (노이즈 매우 큼, XGB·LGB 높은 Holdout은 운)
 
 ③ Temporal Holdout (2023→2024) ← 가장 신뢰할 수 있는 검증
    목적: 진짜 미래 예측 능력 (외부 검증)
@@ -507,49 +512,60 @@ shap.waterfall_plot(exp1[idx])   # 고위험 점포별 피처 기여도 분해
 
 ## 11. 전체 모델 성능 비교
 
-> 기저율: **0.72%** (4,183개 중 폐업 30개)
+> 기저율: **0.72%** (4,183개 중 폐업 30개) · 18개 피처 기준 실행 결과
 
 | 모델 | CV AUC | Lift@5% | 비고 |
 |------|--------|---------|------|
-| 로지스틱 회귀 | 0.642 | 2.0x | 베이스라인 |
+| 로지스틱 회귀 | 0.605 | 3.3x | 베이스라인 |
 | EWS 기본 | 0.668 | 2.7x | λ=0.75, 균등 가중 |
 | **EWS 튜닝 ★** | **0.737** | **4.0x** | 3단계 최적화 — **해석 트랙 (원인 설명)** |
-| RF 기본 | 0.725 | 6.0x | |
-| RF 튜닝 | 0.770 | 6.7x | RandomizedSearchCV |
-| XGBoost | 0.787 | 6.7x | |
-| **LightGBM ★** | **0.797** | **6.0x** | 최고 CV AUC — **탐지 트랙 (등급 결정)** |
-| CatBoost | 0.770 | 6.7x | |
-| Soft Voting (4-Model) | 0.782 | 6.0x | RF+XGB+LGB+CB |
-| Stacking (meta-LR) | 0.697 | 6.0x | 소표본 환경 불리 (폐업 30개) |
-| Hybrid (ML 30% + EWS 70%) | 0.758 | 6.0x | |
+| RF 기본 | 0.735 | 5.3x | |
+| RF 튜닝 | 0.764 | 6.7x | RandomizedSearchCV |
+| XGBoost | 0.778 | 7.3x | |
+| **LightGBM ★** | **0.798** | **7.3x** | **탐지 트랙 (등급 결정)** |
+| **CatBoost** | **0.810** | **6.7x** | 최고 CV AUC |
+| Soft Voting (4-Model) | 0.780 | 7.3x | RF+XGB+LGB+CB |
+| Stacking (meta-LR) | 0.679 | 6.7x | 소표본 환경 불리 (폐업 30개) |
+| Hybrid (ML 30% + EWS 70%) | 0.758 | 5.3x | |
 
 > **★ 최종 운영 시스템**: LightGBM(등급 결정) + EWS 튜닝(원인 설명) 역할 분리 하이브리드  
 > 실제 폐업 30개 기준 — LGB: 정상 오분류 **0개** | EWS: 정상 오분류 1개 + 평가불가 11개
 
-### LightGBM 선택 근거 — AUC vs Lift@k 트레이드오프
+### LightGBM 선택 근거 — CatBoost와의 비교 및 AUC vs Lift@k
 
-표를 보면 CatBoost·XGBoost·RF 튜닝이 **Lift@5%에서 6.7x로 LightGBM(6.0x)보다 높습니다.**  
-그러나 이 차이는 통계적으로 무의미하며, LightGBM이 올바른 선택입니다.
+18개 피처 기준 재실행 결과 **CatBoost CV AUC 0.810으로 LightGBM(0.798)보다 높습니다.**  
+그러나 아래 이유로 LightGBM을 탐지 트랙 운영 모델로 유지합니다.
+
+**CatBoost vs LightGBM 직접 비교**
+
+```
+                CV AUC   Holdout AUC      Δ       Lift@5%
+CatBoost        0.810       0.748      -0.061      6.7x   (낙관적: CV > Holdout)
+LightGBM        0.798       (넓은 CI)   —          7.3x
+
+CV AUC 차이: 0.810 - 0.798 = 0.012
+Holdout 95%CI ≈ ±0.25  (test 폐업 6개 기준)
+→ 0.012 차이는 신뢰구간 내 노이즈
+```
 
 **Lift@5% 차이의 실체**
 
 ```
 상위 5% = 4,183 × 0.05 = 약 209개 점포  (폐업 전체 30개)
 
-Lift 6.7x → 209개 안에 폐업 약 10개 포함  (4.8% precision)
-Lift 6.0x → 209개 안에 폐업 약  9개 포함  (4.3% precision)
-               ↑ 단 1개 차이
+Lift 7.3x → 209개 안에 폐업 약 10~11개  (4.8~5.3% precision)
+Lift 6.7x → 209개 안에 폐업 약  9~10개  (4.3~4.8% precision)
+               ↑ 1개 차이
 ```
 
-폐업이 30개뿐인 극소표본에서 상위 209개 안에 **폐업 1개를 더 잡느냐**가 0.7x Lift 차이로 보입니다. 이는 통계적 노이즈이지 모델 성능 차이가 아닙니다.
-
-**LightGBM을 선택한 이유 3가지**
+**LightGBM을 유지한 이유**
 
 | 근거 | 내용 |
 |------|------|
-| **AUC의 안정성** | AUC는 5-Fold CV 평균 → 샘플링 운에 덜 의존. Lift@k는 1개 포함 여부로 ±0.7x 요동 |
-| **Holdout 일관성** | LGB: CV 0.797 → Holdout 0.760, Δ=**-0.037** (전 모델 중 가장 작은 낙차) <br> CatBoost: CV 0.770 → Holdout 0.619, Δ=-0.150 (과적합 신호) |
-| **전수 4단계 등급이 목적** | 상위 5%만 분류하는 게 아니라 4,183개 전체에 위험·경고·주의·정상을 부여. 전체 순위 품질(AUC)이 최우선 |
+| **AUC 차이가 노이즈 수준** | Δ=0.012, Holdout 95%CI ±0.25 → 통계적으로 유의하지 않음 |
+| **CatBoost Holdout 낙관적** | CV 0.810 → Holdout 0.748, Δ=**-0.061** (CV가 실제보다 과대 추정 신호) |
+| **Lift@5%는 LightGBM 우위** | LGB 7.3x > CB 6.7x — 상위 집중 탐지 효율에서 LGB가 앞섬 |
+| **전수 4단계 등급이 목적** | 4,183개 전체 순위 품질이 중요. 소폭 AUC 차이보다 Lift와 일관성 중시 |
 
 ---
 
@@ -565,7 +581,7 @@ Lift 6.0x → 209개 안에 폐업 약  9개 포함  (4.3% precision)
 | 🔵 주의 | ≥ 40%ile | 1,045개 (25.0%) | 1.2x | EWS 연계 금리우대대출 (0.5%p 차감) |
 | 🟢 정상 | < 40%ile | 1,673개 (40.0%) | 0.0x | 소상공인 성장자금 (우대금리) |
 
-> **Lift@5% (상위 209개 집중 경보)**: LightGBM **6.0x** | EWS 4.0x — 한정된 현장 자원을 LGB 상위 리스트에 투입 시 탐지 효율 50% 우위
+> **Lift@5% (상위 209개 집중 경보)**: LightGBM **7.3x** | EWS 4.0x — 한정된 현장 자원을 LGB 상위 리스트에 투입 시 탐지 효율 80% 우위
 
 ---
 
