@@ -331,15 +331,15 @@ with tab1:
     # ── 오른쪽: 두 관점 카드 + Top 신호 ─────────────────────
     with col_r:
 
-        def _component_cards(cols_meta):
-            cc1, cc2, cc3 = st.columns(3)
-            for col_ui, label, score_col, desc in cols_meta:
+        def _component_cards(cards):
+            cols = st.columns(3)
+            for i, (label, score_col, desc) in enumerate(cards):
                 s_val  = row.get(score_col, float("nan"))
                 s_val  = float(s_val) if pd.notna(s_val) else float("nan")
                 s_g    = classify(s_val) if not np.isnan(s_val) else "평가불가"
                 s_c    = GRADE_META[s_g]["color"]
                 s_disp = f"{s_val:.1f}%ile" if not np.isnan(s_val) else "N/A"
-                with col_ui:
+                with cols[i]:
                     with st.container(border=True):
                         st.markdown(f"""
                         <div style="text-align:center;">
@@ -355,9 +355,9 @@ with tab1:
             st.markdown("### 🔍 모델 예측 근거")
             st.caption("LightGBM이 이 등급을 부여한 피처 그룹별 SHAP 기여도 — 등급 결정 근거와 완전 일치")
             _component_cards([
-                (None, "내부 요인",  "shap_int_pct",  "매출 · 거래 · 고객"),
-                (None, "경쟁 요인",  "shap_comp_pct", "업종 · 상권 위치"),
-                (None, "외부 요인",  "shap_ext_pct",  "주변 폐업 밀도"),
+                ("내부 요인",  "shap_int_pct",  "매출 · 거래 · 고객"),
+                ("경쟁 요인",  "shap_comp_pct", "업종 · 상권 위치"),
+                ("외부 요인",  "shap_ext_pct",  "주변 폐업 밀도"),
             ])
             st.markdown("")
 
@@ -365,9 +365,9 @@ with tab1:
         st.markdown("### 📊 업종 내 또래 비교")
         st.caption("같은 업종 · 상권 점포들과 비교한 상대 위치 (EWS 튜닝 기반)")
         _component_cards([
-            (None, "내부 신호",  "s_int",  "매출 · 거래 · 고객"),
-            (None, "경쟁 신호",  "s_comp", "업종 · 상권 상대 위치"),
-            (None, "외부 신호",  "s_ext",  "주변 폐업 밀도"),
+            ("내부 신호",  "s_int",  "매출 · 거래 · 고객"),
+            ("경쟁 신호",  "s_comp", "업종 · 상권 상대 위치"),
+            ("외부 신호",  "s_ext",  "주변 폐업 밀도"),
         ])
 
         # Top 5 위험 신호 수평 막대
