@@ -305,7 +305,33 @@ Step 5. 위험 점수 → 전체 백분위
         risk_rank = percentilerank(risk_score)
 ```
 
-**가중치 최적화 (05_report_tuning)**: RandomSearch (n=500) 로 λ, (w_int, w_comp, w_ext), 임계값 동시 탐색
+### 최종 점수 산출식
+
+```
+risk_score_opt = 0.65 × r_int + 0.30 × r_comp + 0.05 × r_ext
+
+r_int  = percentilerank( s_int )   ─┐
+r_comp = percentilerank( s_comp )   ├ 전체 점포 내 재백분위화 (0~100)
+r_ext  = percentilerank( s_ext )   ─┘
+
+s_int  = Σ(w_i × rank_f_i) / Σw_i   (내부 피처 10개, i ∈ I)
+s_comp = Σ(w_c × rank_f_c) / Σw_c   (경쟁 피처  6개, c ∈ C)
+s_ext  = Σ(w_e × rank_f_e) / Σw_e   (외부 피처  2개, e ∈ E)
+
+w_*       = Mann-Whitney Effect Size = max(0, 2U / (n₁·n₂) − 1)
+            [폐업 vs 생존 분리력 기반 데이터 주도 피처 가중치]
+
+rank_f_*  = percentilerank(dw_f_* | 업종+상권 그룹) × 100
+            [0~100, 높을수록 위험 — Alive Baseline 그룹 내 상대 순위]
+
+dw_f_*    = Σ(λ^(T−t) × x_t) / Σ λ^(T−t),   λ = 0.75
+            [Temporal Decay 집계 — 3개월 전 가중치 = 현재의 42%]
+
+risk_rank_opt = percentilerank(risk_score_opt | 업종+상권 그룹) × 100
+               [최종 운영 등급 기준값: 위험 ≥ 85%ile / 경고 ≥ 65%ile / 주의 ≥ 40%ile]
+```
+
+**가중치 최적화 (05_report_tuning)**: 3단계 체계적 탐색으로 λ, (w_int, w_comp, w_ext) 동시 최적화
 - 최적 λ = **0.75**
 - 최적 가중치 = **(0.65, 0.30, 0.05)**
 - 임계값 = 위험 ≥ **85%ile**, 경고 ≥ **65%ile**, 주의 ≥ **40%ile**
@@ -571,6 +597,9 @@ streamlit run app_ews.py
 │   ├── eda_01~10_*.png            # EDA 시각화 (notebook 02)
 │   └── ml_01~08_*.png             # 모델 성능·SHAP 시각화 (notebook 04)
 │
+├── p_project_features.csv         # 패널 피처 테이블 (notebook 03 생성)
+│                                 # └─ 4,183개 점포 × 8개월 장기 패널, f_* 원시 피처
+│                                 #    notebook 05 STAGE 2 (lambda 최적화)에서 사용
 ├── p_project_snapshot.csv        # ML 분석용 스냅샷 (4,183행 × 53컬럼, notebook 03)
 │                                 # └─ dw_f_*(18) + rank_f_*(18) + risk_score/risk_rank_pct
 ├── p_project_snapshot_tuned.csv  # 운영 앱용 스냅샷 (4,183행 × 67컬럼, notebook 05)
