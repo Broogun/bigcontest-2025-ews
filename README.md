@@ -746,19 +746,18 @@ streamlit run app_ews.py
 │
 ├── src/
 │   ├── __init__.py
-│   ├── config.py          # 전역 상수·경로 (EWS 파라미터, LGB_BEST_PARAMS)
-│   ├── preprocessing.py   # load_master / load_sales / load_customer / build_panel
-│   ├── features.py        # add_trend_features / build_snapshot / add_peer_ranks
-│   ├── ews_model.py       # compute_ews_score / classify_risk / permutation_test / bootstrap_ci
-│   └── ml_model.py        # build_lgb_model / cv_predict / evaluate / add_lgb_score
+│   ├── config.py          # 경로·파라미터 (SENTINEL, OBS_START/END, EWS 가중치 λ/w, LGB_BEST_PARAMS)
+│   ├── preprocessing.py   # load_master/sales/customer — sentinel 치환·레이블 생성 / build_panel (outer join)
+│   ├── features.py        # add_trend_features(3개월 차분) / build_snapshot(decay_wmean λ=0.75) / add_peer_ranks(업종+상권 백분위)
+│   ├── ews_model.py       # compute_ews_score(rank_f_*→s_int/comp/ext→risk_score) / classify_risk / permutation_test / bootstrap_ci
+│   └── ml_model.py        # build_lgb_model / cv_predict / evaluate / add_lgb_score / save_shap_groups
 │
 ├── app/
 │   ├── app_ews.py         # Streamlit 대시보드
 │   └── requirements.txt   # 앱 전용 경량 의존성
 │
 ├── archive/               # 개발 초안 (gitignore, 레포 미포함)
-│   ├── 서울 성동구.ipynb
-│   └── 응미사_p-실무_코드정리.ipynb
+│   └── 서울 성동구.ipynb
 │
 ├── data/                  # 원본 데이터 (gitignore, 대회 규정상 비공개)
 │

@@ -1,8 +1,8 @@
 """LightGBM 폐업 예측 모델 — 탐지 트랙 (Detection Track)
 
-두 트랙 아키텍처:
-  Track 1 (본 모듈): LightGBM — 탐지 정확도 최우선 (CV AUC 0.797)
-  Track 2 (ews_model.py): EWS 튜닝 — 해석 가능성 최우선 (AUC 0.737)
+두 관점 진단 아키텍처:
+  관점 1 (본 모듈): LightGBM — lgb_rank(위험 등급) + SHAP 그룹(예측 근거)  CV AUC 0.798
+  관점 2 (ews_model.py): EWS — s_int/comp/ext(업종 내 또래 비교)  AUC 0.737
 """
 import numpy as np
 import pandas as pd
@@ -21,8 +21,8 @@ def get_ml_features(snap: pd.DataFrame) -> list:
 def build_lgb_model() -> LGBMClassifier:
     """최적 하이퍼파라미터로 LightGBM 분류기 생성
 
-    파라미터 출처: 04_ml_baseline.ipynb RandomizedSearchCV (5-Fold, n_iter=60)
-    CV AUC: 0.797  |  Holdout AUC: 0.760  |  Lift@5%: 6.0x
+    파라미터 출처: 04_ml_baseline.ipynb RandomizedSearchCV (5-Fold, n_iter=40)
+    CV AUC: 0.798  |  Lift@5%: 7.3x  |  Temporal AUC: 0.631
     """
     return LGBMClassifier(**LGB_BEST_PARAMS)
 
