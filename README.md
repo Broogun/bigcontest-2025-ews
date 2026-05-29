@@ -725,8 +725,9 @@ pip install -r requirements.txt
 # 3단계: 앱 실행
 cd app
 streamlit run app_ews.py
-# → http://localhost:8502
 ```
+
+> **실행 후 브라우저에서 http://localhost:8502 접속**
 
 > **notebook 04를 실행하지 않으면** LightGBM 점수와 SHAP 그룹이 없어 EWS 폴백 모드로 동작한다.
 
