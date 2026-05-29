@@ -503,24 +503,27 @@ shap.waterfall_plot(exp1[idx])   # 고위험 점포별 피처 기여도 분해
 ```
 ① CV AUC (5-Fold StratifiedKFold)
    목적: 모델 비교·선택
-   결과: LightGBM 0.797, EWS 튜닝 0.737
+   결과: LightGBM 0.798, EWS 튜닝 0.737
    한계: 하이퍼파라미터를 전체 CV로 선정 → 선택 편향 존재
 
 ② Holdout AUC (Stratified 20%)
-   목적: 과적합 여부 확인
-   결과 (모델별 Δ = Holdout - CV):
-     RF 튜닝   CV 0.764 → Holdout 0.778  Δ = +0.014  일관적 ✓
-     XGBoost  CV 0.778 → Holdout 0.919  Δ = +0.141  (노이즈)
-     LightGBM CV 0.798 → Holdout 0.899  Δ = +0.101  (노이즈)
-     CatBoost CV 0.810 → Holdout 0.748  Δ = -0.061  낙관적 (경미한 과대추정)
-     Voting   CV 0.780 → Holdout 0.818  Δ = +0.038  일관적 ✓
-   한계: test 내 폐업 6개 → 95%CI ±0.25 (노이즈 매우 큼, XGB·LGB 높은 Holdout은 운)
+   목적: 과적합 여부 확인 (보조 지표 — 소표본 한계 명시)
+   결과 (Δ = Holdout AUC - CV AUC):
+     RF 튜닝   CV 0.764 → Holdout 0.778  Δ = +0.014  ✓ 일관적
+     XGBoost  CV 0.778 → Holdout 0.919  Δ = +0.141  ※ 측정 불안정
+     LightGBM CV 0.798 → Holdout 0.899  Δ = +0.101  ※ 측정 불안정
+     CatBoost CV 0.810 → Holdout 0.748  Δ = -0.061  경미한 과대추정
+     Voting   CV 0.780 → Holdout 0.818  Δ = +0.038  ✓ 일관적
+   ※ XGB·LGB Holdout > CV: 모델 성능이 아닌 소표본 우연
+     test 폐업 6개 → AUC 95%CI ±0.25 — 6개 중 1개 순위만 바뀌어도 AUC가 크게 요동
+     "Holdout이 CV보다 높다"는 과적합이 없다는 뜻이지, 더 좋다는 뜻이 아님
 
 ③ Temporal Holdout (2023→2024) ← 가장 신뢰할 수 있는 검증
    목적: 진짜 미래 예측 능력 (외부 검증)
    방법: 2024년 레이블 전혀 미사용, 2023 데이터만으로 학습
    결과: AUC = 0.611, Lift@5% = 2.0x, p < 0.001 (permutation Z=4.54σ)
-          Bootstrap 95%CI: [0.655, 0.818]
+          Bootstrap 95%CI [0.655, 0.818]: 2023 동시대 기준 모델 성능 추정 구간
+          → 0.611이 CI 하한(0.655) 아래로 떨어진 것 자체가 Distribution Shift의 증거
 ```
 
 > Temporal AUC 하락(0.80→0.61)은 **Distribution Shift** 의 자연스러운 반영. 2024년 매크로 경제 환경(금리·소비 변화)이 2023년 학습 데이터에 포함되지 않아 발생하는 현상이며, 모델 실패가 아닙니다.
