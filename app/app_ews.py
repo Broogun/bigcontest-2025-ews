@@ -6,9 +6,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 # ── 0. 설정 ────────────────────────────────────────────────────────────────────
-# EWS 스냅샷: rank_f_*, s_int/comp/ext, risk_rank_opt (원인 설명용)
+# 두 관점 진단 시스템:
+#   관점 1 (탐지 · 근거): lgb_rank + shap_int/comp/ext_pct  ← lgb_predictions.csv
+#   관점 2 (또래 비교):   s_int / s_comp / s_ext             ← snapshot_tuned.csv
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "p_project_snapshot_tuned.csv")
-# LightGBM 예측값: lgb_prob, lgb_rank (위험 등급 결정용)  — notebook 04 실행 시 생성
 LGB_PATH  = os.path.join(os.path.dirname(__file__), "..", "outputs", "lgb_predictions.csv")
 
 # API 키: Streamlit Cloud secrets → 환경변수 순으로 로드
@@ -180,11 +181,12 @@ div.stButton > button:hover { background: #1D4ED8; }
 def load_data():
     df = pd.read_csv(DATA_PATH)
 
-    # LightGBM 예측값 merge (notebook 04 실행 시 생성)
-    # → lgb_rank 있으면 위험 등급 결정에 사용, 없으면 EWS(risk_rank_opt) 폴백
+    # LightGBM 예측값 + SHAP 그룹 merge (notebook 04 실행 시 생성)
     try:
-        lgb = pd.read_csv(LGB_PATH)[["ENCODED_MCT", "lgb_prob", "lgb_rank"]]
-        df  = df.merge(lgb, on="ENCODED_MCT", how="left")
+        lgb_raw  = pd.read_csv(LGB_PATH)
+        shap_cols = [c for c in ["shap_int_pct", "shap_comp_pct", "shap_ext_pct"] if c in lgb_raw.columns]
+        merge_cols = ["ENCODED_MCT", "lgb_prob", "lgb_rank"] + shap_cols
+        df = df.merge(lgb_raw[merge_cols], on="ENCODED_MCT", how="left")
         df["grade_rank"] = df["lgb_rank"].combine_first(df["risk_rank_opt"])
         df["using_lgb"]  = df["lgb_rank"].notna()
     except FileNotFoundError:
@@ -202,6 +204,7 @@ def load_data():
 
 df = load_data()
 rank_cols = [c for c in df.columns if c.startswith("rank_f_")]
+has_shap  = all(c in df.columns for c in ["shap_int_pct", "shap_comp_pct", "shap_ext_pct"])
 
 # ── 6. 사이드바 ────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -325,30 +328,47 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
 
-    # ── 오른쪽: 컴포넌트 + Top 신호 ──────────────────────────
+    # ── 오른쪽: 두 관점 카드 + Top 신호 ─────────────────────
     with col_r:
-        # 3개 컴포넌트 카드
-        st.markdown("### 위험 요인 분석")
-        cc1, cc2, cc3 = st.columns(3)
-        for col_ui, label, score_col, desc in [
-            (cc1, "내부 신호",  "s_int",  "매출 · 거래 · 고객"),
-            (cc2, "경쟁 신호",  "s_comp", "업종 · 상권 상대 위치"),
-            (cc3, "외부 신호",  "s_ext",  "주변 폐업 밀도"),
-        ]:
-            s_val  = row[score_col] if pd.notna(row[score_col]) else float("nan")
-            s_g    = classify(s_val) if not np.isnan(s_val) else "평가불가"
-            s_c    = GRADE_META[s_g]["color"]
-            s_disp = f"{s_val:.1f}%ile" if not np.isnan(s_val) else "N/A"
-            with col_ui:
-                with st.container(border=True):
-                    st.markdown(f"""
-                    <div style="text-align:center;">
-                        <div class="metric-label">{label}</div>
-                        <div class="metric-value" style="color:{s_c};">{s_disp}</div>
-                        <div style="font-size:0.78rem; color:var(--text-faint); margin:4px 0;">{desc}</div>
-                        <div style="font-size:0.9rem; font-weight:700; color:{s_c};">{s_g}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+
+        def _component_cards(cols_meta):
+            cc1, cc2, cc3 = st.columns(3)
+            for col_ui, label, score_col, desc in cols_meta:
+                s_val  = row.get(score_col, float("nan"))
+                s_val  = float(s_val) if pd.notna(s_val) else float("nan")
+                s_g    = classify(s_val) if not np.isnan(s_val) else "평가불가"
+                s_c    = GRADE_META[s_g]["color"]
+                s_disp = f"{s_val:.1f}%ile" if not np.isnan(s_val) else "N/A"
+                with col_ui:
+                    with st.container(border=True):
+                        st.markdown(f"""
+                        <div style="text-align:center;">
+                            <div class="metric-label">{label}</div>
+                            <div class="metric-value" style="color:{s_c};">{s_disp}</div>
+                            <div style="font-size:0.78rem; color:var(--text-faint); margin:4px 0;">{desc}</div>
+                            <div style="font-size:0.9rem; font-weight:700; color:{s_c};">{s_g}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+        # ── 관점 1: 모델 예측 근거 (SHAP) ────────────────────
+        if using_lgb and has_shap:
+            st.markdown("### 🔍 모델 예측 근거")
+            st.caption("LightGBM이 이 등급을 부여한 피처 그룹별 SHAP 기여도 — 등급 결정 근거와 완전 일치")
+            _component_cards([
+                (None, "내부 요인",  "shap_int_pct",  "매출 · 거래 · 고객"),
+                (None, "경쟁 요인",  "shap_comp_pct", "업종 · 상권 위치"),
+                (None, "외부 요인",  "shap_ext_pct",  "주변 폐업 밀도"),
+            ])
+            st.markdown("")
+
+        # ── 관점 2: 업종 내 또래 비교 (EWS) ──────────────────
+        st.markdown("### 📊 업종 내 또래 비교")
+        st.caption("같은 업종 · 상권 점포들과 비교한 상대 위치 (EWS 튜닝 기반)")
+        _component_cards([
+            (None, "내부 신호",  "s_int",  "매출 · 거래 · 고객"),
+            (None, "경쟁 신호",  "s_comp", "업종 · 상권 상대 위치"),
+            (None, "외부 신호",  "s_ext",  "주변 폐업 밀도"),
+        ])
 
         # Top 5 위험 신호 수평 막대
         st.markdown("### ⚠️ 상위 위험 신호 Top 5")
@@ -517,6 +537,11 @@ with tab3:
                 ])
 
                 rank_src = f"위험 순위 {grade_rank:.1f}%ile"
+
+                shap_line = ""
+                if using_lgb and has_shap:
+                    shap_line = f"- 모델 예측 근거(SHAP): 내부 {row.get('shap_int_pct', float('nan')):.1f}%ile  |  경쟁 {row.get('shap_comp_pct', float('nan')):.1f}%ile  |  외부 {row.get('shap_ext_pct', float('nan')):.1f}%ile"
+
                 prompt = f"""당신은 소상공인 경영위기 조기경보 시스템(EWS)의 AI 분석관입니다.
 이 시스템은 폐업 확률 예측이 아닌 상위 위험군 선별 목적의 순위 기반 조기경보입니다.
 과장·단정·공포 조장 표현을 절대 금지합니다.
@@ -525,13 +550,14 @@ with tab3:
 - 업종: {row['HPSN_MCT_ZCD_NM']}
 - 상권: {row['HPSN_MCT_BZN_CD_NM']}
 - 위험 등급: {grade} ({rank_src})
-- 내부 신호: {row['s_int']:.1f}%ile  |  경쟁 신호: {row['s_comp']:.1f}%ile  |  외부 신호: {row['s_ext']:.1f}%ile
+{shap_line}
+- 업종 내 또래 비교(EWS): 내부 {row['s_int']:.1f}%ile  |  경쟁 {row['s_comp']:.1f}%ile  |  외부 {row['s_ext']:.1f}%ile
 
-[가장 우려되는 상위 3개 신호]
+[가장 우려되는 상위 3개 신호 (업종 내 백분위)]
 {top3_desc}
 
 [모델 검증 정보 — 리포트에 직접 인용 금지]
-LightGBM CV AUC=0.797, EWS AUC=0.737
+LightGBM CV AUC=0.798, EWS AUC=0.737
 Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
 전향적 검증(2023→2024): AUC=0.611, Lift@5%=2.0x
 

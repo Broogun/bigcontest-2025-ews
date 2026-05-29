@@ -93,20 +93,20 @@ flowchart TD
 
     SNAP["📊 스냅샷 · 4,183행\ndw_f_ ×18  ·  rank_f_ ×18\ns_int / s_comp / s_ext  ·  risk_rank_opt"]
 
-    subgraph DUAL["분석 트랙"]
+    subgraph DUAL["두 관점 진단"]
         direction LR
-        LGB["🎯 탐지 트랙\nLightGBM\nCV AUC 0.798 · Lift@5% 7.3x\n전수 평가 · 정상 오분류 0건"]
-        EWS["🔍 해석 트랙\nEWS 튜닝\nAUC 0.737\n내부 · 경쟁 · 외부 분해"]
+        LGB["🎯 탐지 트랙\nLightGBM  CV AUC 0.798\nlgb_rank → 위험 등급 결정\nSHAP 그룹 → 예측 근거 투명화"]
+        EWS["📊 맥락 트랙\nEWS 튜닝  AUC 0.737\ns_int · s_comp · s_ext\n업종 내 또래 비교"]
     end
 
-    APP["🖥 운영 앱 · app_ews.py\n위험 등급  ·  AI 경영 진단  ·  맞춤 금융상품"]
+    APP["🖥 운영 앱 · app_ews.py\n위험 등급  ·  예측 근거(SHAP)  ·  또래 비교(EWS)  ·  AI 경영 진단"]
 
     SRC      -->|"outer join + sentinel 처리"| PANEL
     PANEL    -->|"Event Window · Alive Baseline\nTemporal Decay  λ = 0.75"| SNAP
     SNAP     --> LGB
     SNAP     --> EWS
-    LGB      -->|"lgb_predictions.csv"| APP
-    EWS      --> APP
+    LGB      -->|"lgb_predictions.csv\n(lgb_rank + SHAP 그룹)"| APP
+    EWS      -->|"snapshot_tuned.csv\n(s_int / s_comp / s_ext)"| APP
 ```
 
 ---
@@ -123,7 +123,7 @@ flowchart TD
 
 1. **희귀 이벤트 환경 대응** — 폐업률 0.72%에서도 안정적으로 작동하는 순위 기반 조기경보 모델
 2. **정교한 전처리 구조** — Event Window + Temporal Decay (λ=0.75) + Alive Baseline 3중 결합
-3. **두 트랙 아키텍처** — LightGBM(탐지)과 EWS(해석)를 분리하여 실무 활용성과 모델 안정성 동시 확보
+3. **두 관점 진단 아키텍처** — LightGBM+SHAP(예측 근거 투명화)와 EWS(업종 내 또래 비교)를 병렬로 제공하여 "왜 위험한가"와 "어디가 취약한가"를 동시에 답함
 4. **실무형 통합** — 정량적 조기경보 결과를 Claude Haiku 기반 컨설팅 모듈과 결합
 
 ---
@@ -275,12 +275,29 @@ n_obs_months, is_closed_obs              ← 관측 정보·레이블 (2 + 기�
 
 ## 8. 모델 설계
 
-스냅샷의 두 컬럼 그룹이 각각 다른 역할을 담당합니다.
+이 시스템은 소상공인 경영위기를 **두 가지 독립적인 관점**으로 진단한다.
 
-- `dw_f_*` (감쇠가중 집계값) → **ML 분석** — 11개 모델 성능 비교, SHAP 피처 기여도 분석
-- `rank_f_*` + `s_*` + `risk_rank_opt` (백분위 기반 EWS 점수) → **운영 시스템** — 앱의 등급 분류·시각화·AI 리포트
+### 관점 1 — 탐지 트랙: "이 점포가 왜 위험한가?"
 
-최종 운영 시스템은 **역할 분리 하이브리드**로 구성됩니다. **LightGBM(CV AUC 0.798, Lift@5% 7.3x)**이 전체 4,183개 점포의 위험 등급을 결정하고, **EWS 튜닝(AUC 0.737)**이 위험 원인을 내부·경쟁·외부 3요소로 분해합니다.
+`dw_f_*` → **LightGBM(CV AUC 0.798)** → `lgb_rank`(위험 등급) + **SHAP 그룹 합산** → `shap_int_pct / shap_comp_pct / shap_ext_pct`
+
+LightGBM이 예측한 위험 등급의 근거를 내부·경쟁·외부 3개 피처 그룹의 SHAP 기여도로 설명한다. 등급을 결정한 모델과 설명이 완전히 일치하여 예측 근거가 투명하게 드러난다.
+
+```
+예: "이 점포는 내부 요인(매출·거래·고객)의 SHAP 기여도가 업종 내 상위 2% — 내부 악화가 LGB 위험 예측을 주도하고 있다."
+```
+
+### 관점 2 — 맥락 트랙: "같은 업종 또래들과 비교해서 어디가 취약한가?"
+
+`rank_f_*` → **EWS 튜닝(AUC 0.737)** → `s_int / s_comp / s_ext`
+
+업종·상권 그룹 내 백분위 기반 상대 비교로, 담당 공무원이 현장에서 즉시 이해할 수 있는 맥락을 제공한다. "이 점포가 동종 업종에서 하위 몇 %인가"를 3차원으로 보여준다.
+
+```
+예: "같은 업종 내 내부 지표 하위 8%, 경쟁 환경 하위 15% — 내부가 더 시급하다."
+```
+
+> **두 관점은 앙상블이 아니다.** 예측값을 혼합하거나 합산하지 않는다. 서로 다른 질문에 답하며, 대시보드에 나란히 표시되어 진단의 완전성을 높인다.
 
 ### 8.1 운영 모델: EWS 튜닝
 
@@ -618,7 +635,7 @@ streamlit run app_ews.py
 
 | 탭 | 기능 |
 |----|------|
-| 📋 종합 진단 | 위험 등급 게이지 + 위험 요인 분석 (내부/경쟁/외부) + Top 5 위험 신호 |
+| 📋 종합 진단 | 위험 등급 게이지 + **모델 예측 근거(SHAP 그룹)** + **업종 내 또래 비교(EWS)** + Top 5 위험 신호 |
 | 📊 신호 분석 | 레이더 차트 + 18개 `rank_f_*` 피처 업종별 백분위 상세 |
 | 💳 맞춤 금융 서비스 | 등급별 금융상품 자동 매칭 + Claude Haiku AI 경영 진단 리포트 |
 
