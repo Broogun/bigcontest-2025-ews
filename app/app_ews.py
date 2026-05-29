@@ -275,7 +275,7 @@ with tab1:
     # ── 왼쪽: 등급 게이지 ─────────────────────────────────────
     with col_l:
         with st.container(border=True):
-            score_label = "경영위기 위험 순위"
+            top_pct = max(1, round(100 - grade_rank))
             st.markdown(f"""
             <div style="text-align:center; padding:8px 0;">
                 <div class="metric-label" style="margin-bottom:8px;">종합 위기 등급</div>
@@ -284,13 +284,13 @@ with tab1:
                     {meta['emoji']} {grade}
                 </div>
                 <div style="margin-top:14px; font-size:0.85rem; color:var(--text-muted);">
-                    {score_label}
+                    성동구 요식업 전체 기준
                 </div>
                 <div style="font-size:2.8rem; font-weight:900; color:{color}; line-height:1.1;">
-                    {grade_rank:.1f}<span style="font-size:1rem;">%ile</span>
+                    상위 {top_pct}<span style="font-size:1rem;">%</span>
                 </div>
                 <div style="font-size:0.8rem; color:var(--text-faint); margin-top:4px;">
-                    상위 {100-grade_rank:.1f}% 보다 위험
+                    4,183개 점포 중 위험도 상위 {top_pct}% 해당
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -331,6 +331,12 @@ with tab1:
     # ── 오른쪽: 두 관점 카드 + Top 신호 ─────────────────────
     with col_r:
 
+        def _pct_label(val):
+            """%ile 숫자 → '상위 X%' 직관적 표현 (높을수록 위험)"""
+            if np.isnan(val): return "N/A"
+            top = max(1, round(100 - val))
+            return f"상위 {top}%"
+
         def _component_cards(cards):
             cols = st.columns(3)
             for i, (label, score_col, desc) in enumerate(cards):
@@ -338,7 +344,7 @@ with tab1:
                 s_val  = float(s_val) if pd.notna(s_val) else float("nan")
                 s_g    = classify(s_val) if not np.isnan(s_val) else "평가불가"
                 s_c    = GRADE_META[s_g]["color"]
-                s_disp = f"{s_val:.1f}%ile" if not np.isnan(s_val) else "N/A"
+                s_disp = _pct_label(s_val)
                 with cols[i]:
                     with st.container(border=True):
                         st.markdown(f"""
@@ -346,14 +352,14 @@ with tab1:
                             <div class="metric-label">{label}</div>
                             <div class="metric-value" style="color:{s_c};">{s_disp}</div>
                             <div style="font-size:0.78rem; color:var(--text-faint); margin:4px 0;">{desc}</div>
-                            <div style="font-size:0.9rem; font-weight:700; color:{s_c};">{s_g}</div>
+                            <div style="font-size:0.9rem; font-weight:700; color:{s_c};">{GRADE_META[s_g]['emoji']} {s_g}</div>
                         </div>
                         """, unsafe_allow_html=True)
 
-        # ── 관점 1: 모델 예측 근거 (SHAP) ────────────────────
+        # ── 관점 1: 위험 판정 이유 ────────────────────────────
         if using_lgb and has_shap:
-            st.markdown("### 🔍 모델 예측 근거")
-            st.caption("LightGBM이 이 등급을 부여한 피처 그룹별 SHAP 기여도 — 등급 결정 근거와 완전 일치")
+            st.markdown("### 🔍 위험 판정 이유")
+            st.caption("이 점포의 어느 부분이 위험 등급에 영향을 미쳤는가 (전체 점포 기준)")
             _component_cards([
                 ("내부 요인",  "shap_int_pct",  "매출 · 거래 · 고객"),
                 ("경쟁 요인",  "shap_comp_pct", "업종 · 상권 위치"),
@@ -361,17 +367,17 @@ with tab1:
             ])
             st.markdown("")
 
-        # ── 관점 2: 업종 내 또래 비교 (EWS) ──────────────────
-        st.markdown("### 📊 업종 내 또래 비교")
-        st.caption("같은 업종 · 상권 점포들과 비교한 상대 위치 (EWS 튜닝 기반)")
+        # ── 관점 2: 같은 업종 점포와 비교 ────────────────────
+        st.markdown("### 📊 같은 업종 점포들과 비교")
+        st.caption("성동구 동일 업종 · 상권 내 점포들 사이에서 이 점포의 위치")
         _component_cards([
-            ("내부 신호",  "s_int",  "매출 · 거래 · 고객"),
-            ("경쟁 신호",  "s_comp", "업종 · 상권 상대 위치"),
-            ("외부 신호",  "s_ext",  "주변 폐업 밀도"),
+            ("내부 지표",  "s_int",  "매출 · 거래 · 고객"),
+            ("경쟁 환경",  "s_comp", "업종 · 상권 내 순위"),
+            ("외부 환경",  "s_ext",  "주변 폐업 밀도"),
         ])
 
         # Top 5 위험 신호 수평 막대
-        st.markdown("### ⚠️ 상위 위험 신호 Top 5")
+        st.markdown("### ⚠️ 가장 우려되는 신호 Top 5")
         if top_signals:
             bar_colors = [GRADE_META[classify(row[c])]["color"] for c in top_signals]
             fig_bar = go.Figure(go.Bar(
@@ -379,7 +385,7 @@ with tab1:
                 x=[row[c] for c in top_signals],
                 orientation="h",
                 marker_color=bar_colors,
-                text=[f"  {row[c]:.1f}%ile" for c in top_signals],
+                text=[f"  상위 {max(1, round(100 - row[c]))}%" for c in top_signals],
                 textposition="outside",
                 textfont=dict(size=13),
             ))
@@ -398,10 +404,11 @@ with tab1:
 # TAB 2: 신호 분석
 # ═══════════════════════════════════════════════════════════════
 with tab2:
+    st.caption("📌 이 탭의 수치는 모두 **성동구 동일 업종·상권 내 상대 순위** 기준입니다. 높을수록 위험.")
     col_radar, col_detail = st.columns([1, 1.2], gap="large")
 
     with col_radar:
-        st.markdown("### 🕸️ 리스크 레이더")
+        st.markdown("### 🕸️ 위험 신호 레이더")
         r_labels = [FEAT_KO.get(f, f) for f in RADAR_FEATS]
         r_vals   = [
             float(row[f]) if f in row.index and pd.notna(row[f]) else 50.0
@@ -420,12 +427,12 @@ with tab2:
         fig_r.add_trace(go.Scatterpolar(
             r=[65] * 7, theta=r_labels_c,
             line=dict(color="#F59E0B", dash="dot", width=1.5),
-            name="경고 기준선 (65%ile)",
+            name="경고 기준 (상위 35%)",
         ))
         fig_r.add_trace(go.Scatterpolar(
             r=[50] * 7, theta=r_labels_c,
             line=dict(color="#94A3B8", dash="dash", width=1),
-            name="평균 (50%ile)",
+            name="업종 평균",
         ))
         fig_r.update_layout(
             polar=dict(
@@ -440,12 +447,12 @@ with tab2:
         st.plotly_chart(fig_r, use_container_width=True)
 
     with col_detail:
-        st.markdown("### 📋 전체 피처 상세")
+        st.markdown("### 📋 세부 지표 (업종 내 상대 순위)")
 
         for group_name, feats in [
-            ("내부 신호 (Internal)", F_INT),
-            ("경쟁 신호 (Competitive)", F_COMP),
-            ("외부 신호 (External)", F_EXT),
+            ("내부 지표 — 매출·거래·고객", F_INT),
+            ("경쟁 환경 — 업종·상권 내 위치", F_COMP),
+            ("외부 환경 — 주변 폐업 밀도", F_EXT),
         ]:
             with st.expander(f"**{group_name}**", expanded=(group_name.startswith("내부"))):
                 for f in feats:
@@ -455,12 +462,13 @@ with tab2:
                     g_f  = classify(val)
                     c_f  = GRADE_META[g_f]["color"]
                     pct  = int(min(val, 100))
+                    top_str = f"상위 {max(1, round(100 - val))}%"
                     st.markdown(f"""
                     <div style="margin-bottom:9px;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
                             <span style="font-size:0.88rem; font-weight:600;">{FEAT_KO.get(f, f)}</span>
                             <span style="font-size:0.82rem; color:{c_f}; font-weight:700;">
-                                {val:.1f}%ile · {g_f}
+                                {top_str} · {g_f}
                             </span>
                         </div>
                         <div style="background:var(--bg-bar); border-radius:4px; height:7px; overflow:hidden;">
