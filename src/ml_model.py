@@ -76,12 +76,54 @@ def evaluate(y_true: np.ndarray, y_prob: np.ndarray, k_pct: float = 0.05) -> dic
 
 
 def add_lgb_score(snap: pd.DataFrame, label_col: str = "is_closed_obs") -> pd.DataFrame:
-    """스냅샷에 LightGBM CV 예측 확률 컬럼(lgb_prob)을 추가해 반환
+    """스냅샷에 LightGBM 결과 컬럼을 추가해 반환
 
-    평가 대상 점포(label_col이 유효한 행)에만 적용합니다.
+    추가 컬럼:
+      lgb_prob : CV 예측 확률 (0~1)
+      lgb_rank : 전체 점포 내 위험 백분위 (0~100, 높을수록 위험)
+
+    평가 대상 점포(label_col이 유효한 행)에만 적용한다.
     """
     snap = snap.copy()
     valid = snap[label_col].notna()
     probs = cv_predict(snap[valid], label_col=label_col)
     snap.loc[valid, "lgb_prob"] = probs.values
+    snap.loc[valid, "lgb_rank"] = probs.rank(pct=True).values * 100
     return snap
+
+
+def compute_shap_groups(
+    model: LGBMClassifier,
+    X: pd.DataFrame,
+    feat_groups: dict | None = None,
+) -> pd.DataFrame:
+    """LightGBM SHAP 값을 내부·경쟁·외부 그룹별로 합산해 percentile 반환
+
+    Parameters
+    ----------
+    model      : 학습 완료된 LGBMClassifier
+    X          : 피처 DataFrame (dw_f_* 18개, FEAT_INTERNAL+COMPETITIVE+EXTERNAL 순)
+    feat_groups: {"int": slice(0,10), "comp": slice(10,16), "ext": slice(16,18)}
+                 None 이면 기본값(18개 피처 기준) 사용
+
+    Returns
+    -------
+    DataFrame with columns: shap_int_pct, shap_comp_pct, shap_ext_pct (0~100)
+    """
+    try:
+        import shap
+    except ImportError:
+        raise ImportError("shap 패키지가 필요합니다: pip install shap")
+
+    if feat_groups is None:
+        feat_groups = {"int": slice(0, 10), "comp": slice(10, 16), "ext": slice(16, 18)}
+
+    explainer = shap.TreeExplainer(model)
+    sv = explainer.shap_values(X)
+    sv1 = sv if (hasattr(sv, "ndim") and sv.ndim == 2) else sv[:, :, 1]
+
+    result = pd.DataFrame(index=X.index)
+    for name, sl in feat_groups.items():
+        raw = sv1[:, sl].sum(axis=1)
+        result[f"shap_{name}_pct"] = pd.Series(raw, index=X.index).rank(pct=True).values * 100
+    return result
