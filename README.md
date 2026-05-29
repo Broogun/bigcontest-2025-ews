@@ -447,7 +447,8 @@ hybrid_prob = 0.30 × norm01(stack_prob) + 0.70 × norm01(ews_opt_prob)
 
 ## 9. SHAP 분석
 
-RF 튜닝 모델 기반 `shap.TreeExplainer` 로 18개 피처 기여도 분석.
+**탐지 트랙 최종 모델(LightGBM)** 기반 `shap.TreeExplainer` 로 18개 피처 기여도 분석.  
+운영 모델과 설명 모델을 일치시켜 "등급 결정 근거"를 직접 해석할 수 있습니다.
 
 ### 전역 피처 중요도
 
@@ -462,7 +463,7 @@ RF 튜닝 모델 기반 `shap.TreeExplainer` 로 18개 피처 기여도 분석.
 ### 개별 점포 설명 (Waterfall Plot)
 
 ```python
-explainer = shap.TreeExplainer(rf_tuned_model)
+explainer = shap.TreeExplainer(lgb_rscv.best_estimator_)
 exp = explainer(X)
 shap.waterfall_plot(exp[high_risk_idx])   # 고위험 점포 Top 3 분해
 ```
