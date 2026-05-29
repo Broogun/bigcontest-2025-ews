@@ -376,6 +376,41 @@ with tab1:
             ("외부 환경",  "s_ext",  "주변 폐업 밀도"),
         ])
 
+        # ── 자동 종합 해석 ────────────────────────────────────
+        ews_map = {
+            "내부 지표 (매출·거래·고객)": float(row.get("s_int", float("nan"))),
+            "경쟁 환경 (업종 내 위치)":   float(row.get("s_comp", float("nan"))),
+            "외부 환경 (주변 폐업 밀도)": float(row.get("s_ext", float("nan"))),
+        }
+        ews_valid = {k: v for k, v in ews_map.items() if not np.isnan(v)}
+
+        if len(ews_valid) >= 2:
+            worst_k = max(ews_valid, key=ews_valid.get)
+            best_k  = min(ews_valid, key=ews_valid.get)
+            worst_g = classify(ews_valid[worst_k])
+            best_g  = classify(ews_valid[best_k])
+            worst_top = max(1, round(100 - ews_valid[worst_k]))
+            best_top  = max(1, round(100 - ews_valid[best_k]))
+
+            if worst_g != best_g:
+                if best_g in ("정상", "주의") and worst_g in ("위험", "경고"):
+                    badge_color = GRADE_META[worst_g]["color"]
+                    safe_color  = GRADE_META[best_g]["color"]
+                    extra = ""
+                    if best_g == "정상":
+                        extra = f" <b style='color:{safe_color};'>{best_k}의 안정세가 상황을 버텨주고 있습니다.</b> 이 부분이 흔들리면 등급이 올라갈 수 있습니다."
+                    elif best_g == "주의" and worst_g == "위험":
+                        extra = f" 전반적으로 주의가 필요한 상황입니다."
+                    insight_html = (
+                        f"<div style='background:var(--bg-subtle); border-left:4px solid {badge_color}; "
+                        f"padding:12px 15px; border-radius:8px; font-size:0.9rem; color:var(--text-body); line-height:1.7;'>"
+                        f"<b style='color:{badge_color};'>{worst_k}</b>가 업종 내 상위 {worst_top}%로 가장 우려됩니다. "
+                        f"반면 <b style='color:{safe_color};'>{best_k}</b>는 상위 {best_top}%로 현재 안정적입니다."
+                        f"{extra}</div>"
+                    )
+                    st.markdown(insight_html, unsafe_allow_html=True)
+                    st.markdown("")
+
         # Top 5 위험 신호 수평 막대
         st.markdown("### ⚠️ 가장 우려되는 신호 Top 5")
         if top_signals:
