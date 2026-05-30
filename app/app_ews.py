@@ -15,9 +15,9 @@ LGB_PATH  = os.path.join(os.path.dirname(__file__), "..", "outputs", "lgb_predic
 # API 키: Streamlit Cloud secrets → 환경변수 순으로 로드
 def _get_api_key() -> str:
     try:
-        return st.secrets["ANTHROPIC_API_KEY"]
+        return st.secrets["OPENAI_API_KEY"]
     except Exception:
-        return os.environ.get("ANTHROPIC_API_KEY", "")
+        return os.environ.get("OPENAI_API_KEY", "")
 
 # ── 1. 위험 등급 분류 ──────────────────────────────────────────────────────────
 GRADE_META = {
@@ -571,7 +571,7 @@ with tab3:
     with col_ai:
         st.markdown("### AI 경영 진단 리포트")
 
-        if st.button("✨ AI 리포트 생성 (Claude Haiku)"):
+        if st.button("✨ AI 리포트 생성 (GPT-4o-mini)"):
             with st.spinner("AI 분석 중 (약 10초)..."):
 
                 top3_desc = "\n".join([
@@ -613,17 +613,17 @@ Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
 
                 ai_text = None
                 try:
-                    import anthropic
+                    from openai import OpenAI
                     api_key = _get_api_key()
                     if not api_key:
                         raise ValueError("API 키 없음 — 기본 리포트로 대체합니다")
-                    client  = anthropic.Anthropic(api_key=api_key)
-                    msg     = client.messages.create(
-                        model="claude-haiku-4-5-20251001",
+                    client  = OpenAI(api_key=api_key)
+                    msg     = client.chat.completions.create(
+                        model="gpt-4o-mini",
                         max_tokens=1024,
                         messages=[{"role": "user", "content": prompt}],
                     )
-                    ai_text = msg.content[0].text
+                    ai_text = msg.choices[0].message.content
                 except Exception as e:
                     first_prod = PRODUCTS[grade][0]["name"] if PRODUCTS.get(grade) else "정책자금"
                     top_ko     = FEAT_KO.get(top_signals[0], top_signals[0]) if top_signals else "매출 추세"

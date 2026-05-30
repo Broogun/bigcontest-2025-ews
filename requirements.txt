@@ -22,7 +22,7 @@ plotly>=5.0
 
 # 앱 (app/app_ews.py)
 streamlit>=1.28
-anthropic>=0.20
+openai>=1.0
 
 # 유틸
 jupyter
