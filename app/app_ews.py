@@ -1,4 +1,10 @@
 import os
+import sys
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -625,6 +631,7 @@ Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
                     )
                     ai_text = msg.choices[0].message.content
                 except Exception as e:
+                    err_msg = str(e).encode("utf-8", errors="replace").decode("utf-8")
                     first_prod = PRODUCTS[grade][0]["name"] if PRODUCTS.get(grade) else "정책자금"
                     top_ko     = FEAT_KO.get(top_signals[0], top_signals[0]) if top_signals else "매출 추세"
                     ai_text = f"""**[AI 경영 진단 리포트 — {row['HPSN_MCT_BZN_CD_NM']} {row['HPSN_MCT_ZCD_NM']}]**
@@ -650,7 +657,7 @@ Bootstrap 95%CI=[0.655, 0.818], Permutation p<0.001
 **5. 권장 금융 서비스**
 '{grade}' 등급 기준 **'{first_prod}'** 신청을 우선 검토하세요.
 
-*(API 키 미설정 — 기본 리포트 표시 중: {e})*"""
+*(기본 리포트 표시 중: {err_msg})*"""
 
                 with st.container(border=True):
                     st.markdown(ai_text)
