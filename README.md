@@ -547,21 +547,19 @@ Voting 대비 추론 속도·메모리·유지보수 비용 1/4 수준으로 운
 ## 10. 3단계 검증 체계
 
 ```
-① CV AUC (5-Fold StratifiedKFold)
-   목적: 모델 비교·선택
+① CV AUC (5-Fold StratifiedKFold) ← 모델 선택 기준
+   목적: 모델 비교·선택 — 5개 fold 평균으로 단일 split보다 안정적
    결과: LightGBM 0.798 / EWS 튜닝 0.737
    한계: 하이퍼파라미터를 전체 CV로 선정 → 선택 편향 존재
 
-② Holdout AUC (Stratified 20%) — LightGBM 과적합 여부 확인
-   목적: CV 결과 신뢰성 검토 (보조 지표 — 소표본 한계 명시)
-   결과 (Δ = Holdout AUC - CV AUC):
-     RF 튜닝   CV 0.764 → Holdout 0.778  Δ = +0.014  ✓ 일관적
-     XGBoost  CV 0.778 → Holdout 0.919  Δ = +0.141  ※ 측정 불안정
-     LightGBM CV 0.798 → Holdout 0.899  Δ = +0.101  ※ 측정 불안정
-     CatBoost CV 0.810 → Holdout 0.748  Δ = -0.061  경미한 과대추정
-     Voting   CV 0.780 → Holdout 0.818  Δ = +0.038  ✓ 일관적
-   ※ XGB·LGB Holdout > CV: 모델 성능이 아닌 소표본 우연
-     test 폐업 6개 → AUC 95%CI ±0.25 — 6개 중 1개 순위만 바뀌어도 AUC가 크게 요동
+② Holdout AUC (Stratified 20%) ← 이상 감지(sanity check) 전용
+   목적: 학습 자체가 실패했는지 확인 — 모델 간 성능 비교 목적 아님
+   ※ test 내 폐업 6개 → AUC 95%CI ±0.25
+     → 모든 Δ 값이 신뢰구간 내 노이즈 — 상대 비교 불가
+     → Holdout AUC가 0.5 이하로 붕괴하지 않는 한 정상 판정
+   결과: 전 모델 Holdout AUC > 0.7 — 학습 실패 없음 ✓
+   참고 (방향성만):
+     CatBoost CV 0.810 → Holdout 0.748  Δ = -0.061  (CV > Holdout, 경미한 과대추정 가능성)
 
 ③ Temporal Holdout + Permutation Test (2023→2024) ← 가장 신뢰할 수 있는 검증
    목적: 진짜 미래 예측 능력 검증 — 미래 레이블 전혀 미사용
