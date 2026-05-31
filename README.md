@@ -1,6 +1,8 @@
 # 성동구 소상공인 경영위기 조기경보 시스템 (EWS)
 ### ML 탐지 · SHAP 설명 · EWS 동일 업종 비교 · LLM 경영 진단
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://bigcontest-2025-ews-5yrcwa6beml2fdp7czwez9.streamlit.app)
+
 > **2025 빅콘테스트 AI데이터 분석분야**  
 > 우리 동네 가맹점, 위기 신호를 미리 잡아라!  
 > 가천대학교 응용통계학과 — 이원우 · 박형건 · 오휘연 · 한민규
@@ -760,12 +762,18 @@ OPENAI_API_KEY = "sk-..."
 
 ---
 
-## 16. 대시보드 (로컬 실행)
+## 16. 대시보드
 
-데이터가 대회 규정상 비공개이므로 퍼블릭 배포 없이 로컬 실행 방식으로 제공한다.
+### 🌐 라이브 데모
+
+**→ [https://bigcontest-2025-ews-5yrcwa6beml2fdp7czwez9.streamlit.app](https://bigcontest-2025-ews-5yrcwa6beml2fdp7czwez9.streamlit.app)**
+
+원시 데이터는 대회 규정상 비공개이나, 분석 결과물(스냅샷·예측값)을 Google Drive에 호스팅하여 Streamlit Cloud에서 상시 서비스한다. 앱 시작 시 자동으로 데이터를 로드하며, 별도 설치 없이 링크 클릭만으로 전체 기능을 체험할 수 있다.
+
+### 💻 로컬 실행 (개발 환경)
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # 1단계: 노트북 순서대로 실행 (outputs/ 산출물 생성)
 #   01 전처리 → 02 EDA → 03 피처 → 04 ML/SHAP(필수) → 05 튜닝 → 06 검증
