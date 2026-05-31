@@ -15,8 +15,31 @@ import plotly.express as px
 # 두 관점 진단 시스템:
 #   관점 1 (탐지 · 근거): lgb_rank + shap_int/comp/ext_pct  ← lgb_predictions.csv
 #   관점 2 (또래 비교):   s_int / s_comp / s_ext             ← snapshot_tuned.csv
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "p_project_snapshot_tuned.csv")
-LGB_PATH  = os.path.join(os.path.dirname(__file__), "..", "outputs", "lgb_predictions.csv")
+
+# ── 데이터 경로: 로컬 우선 → 없으면 Google Drive 다운로드 ──────────────────────
+_LOCAL_SNAP = os.path.join(os.path.dirname(__file__), "..", "p_project_snapshot_tuned.csv")
+_LOCAL_LGB  = os.path.join(os.path.dirname(__file__), "..", "outputs", "lgb_predictions.csv")
+
+# Google Drive 파일 ID (업로드 후 아래 두 값을 교체하세요)
+_GDRIVE_SNAP_ID = "GDRIVE_SNAP_ID_PLACEHOLDER"
+_GDRIVE_LGB_ID  = "GDRIVE_LGB_ID_PLACEHOLDER"
+
+@st.cache_resource(show_spinner="데이터 로딩 중…")
+def _resolve_paths() -> tuple[str, str]:
+    """로컬 파일이 있으면 그대로 사용, 없으면 Google Drive에서 다운로드."""
+    if os.path.exists(_LOCAL_SNAP):
+        return _LOCAL_SNAP, _LOCAL_LGB
+    import gdown, tempfile
+    tmp       = tempfile.gettempdir()
+    snap_path = os.path.join(tmp, "snapshot_tuned.csv")
+    lgb_path  = os.path.join(tmp, "lgb_predictions.csv")
+    if not os.path.exists(snap_path):
+        gdown.download(f"https://drive.google.com/uc?id={_GDRIVE_SNAP_ID}",
+                       snap_path, quiet=True)
+    if not os.path.exists(lgb_path):
+        gdown.download(f"https://drive.google.com/uc?id={_GDRIVE_LGB_ID}",
+                       lgb_path, quiet=True)
+    return snap_path, lgb_path
 
 # API 키: Streamlit Cloud secrets → 환경변수 순으로 로드
 def _get_api_key() -> str:
@@ -185,11 +208,12 @@ div.stButton > button:hover { background: #1D4ED8; }
 # ── 5. 데이터 로드 ─────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    df = pd.read_csv(DATA_PATH)
+    snap_path, lgb_path = _resolve_paths()
+    df = pd.read_csv(snap_path)
 
     # LightGBM 예측값 + SHAP 그룹 merge (notebook 04 실행 시 생성)
     try:
-        lgb_raw  = pd.read_csv(LGB_PATH)
+        lgb_raw  = pd.read_csv(lgb_path)
         shap_cols = [c for c in ["shap_int_pct", "shap_comp_pct", "shap_ext_pct"] if c in lgb_raw.columns]
         merge_cols = ["ENCODED_MCT", "lgb_prob", "lgb_rank"] + shap_cols
         df = df.merge(lgb_raw[merge_cols], on="ENCODED_MCT", how="left")
