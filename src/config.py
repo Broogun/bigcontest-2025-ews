@@ -58,15 +58,15 @@ PEER_GROUP_COL = "HPSN_MCT_BZN_CD_NM"   # 상권 기준 피어 그룹
 DW_PREFIX = "dw_"   # ML 피처 컬럼 접두사 (스냅샷 내 dw_f_* 컬럼)
 
 LGB_BEST_PARAMS = {
-    "subsample": 0.6,
-    "reg_lambda": 0.1,
-    "reg_alpha": 0.1,
+    "subsample": 0.8,
+    "reg_lambda": 0,
+    "reg_alpha": 0,
     "num_leaves": 15,
-    "n_estimators": 200,
+    "n_estimators": 300,
     "min_child_samples": 10,
-    "max_depth": 6,
+    "max_depth": -1,
     "learning_rate": 0.2,
-    "colsample_bytree": 0.6,
+    "colsample_bytree": 0.8,
     "class_weight": "balanced",
     "random_state": 42,
     "verbose": -1,
