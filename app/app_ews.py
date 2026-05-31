@@ -21,8 +21,8 @@ _LOCAL_SNAP = os.path.join(os.path.dirname(__file__), "..", "p_project_snapshot_
 _LOCAL_LGB  = os.path.join(os.path.dirname(__file__), "..", "outputs", "lgb_predictions.csv")
 
 # Google Drive 파일 ID (업로드 후 아래 두 값을 교체하세요)
-_GDRIVE_SNAP_ID = "GDRIVE_SNAP_ID_PLACEHOLDER"
-_GDRIVE_LGB_ID  = "GDRIVE_LGB_ID_PLACEHOLDER"
+_GDRIVE_SNAP_ID = "1VjhgFf5ZEUSEcX5rNbc6nTSU7JdGtBeq"
+_GDRIVE_LGB_ID  = "1dBkPTPjgw64Uwp4_Um8GyzMteKxV8Wrh"
 
 @st.cache_resource(show_spinner="데이터 로딩 중…")
 def _resolve_paths() -> tuple[str, str]:
