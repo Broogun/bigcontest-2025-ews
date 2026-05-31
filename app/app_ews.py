@@ -136,67 +136,61 @@ st.markdown("""
 <style>
 /* ── CSS 변수: 라이트 모드 기본값 ──────────────────────────── */
 :root {
-    --bg-app:        #F1F5F9;
-    --bg-card:       #FFFFFF;
     --bg-subtle:     #F8FAFC;
-    --bg-bar:        #F1F5F9;
     --border:        #E2E8F0;
-    --text-primary:  #0F172A;
-    --text-heading:  #1E293B;
     --text-muted:    #64748B;
-    --text-faint:    #94A3B8;
     --text-body:     #334155;
-    --text-detail:   #475569;
     --badge-rate-bg: #EFF6FF;
     --badge-rate-fg: #2563EB;
     --badge-lim-bg:  #F0FDF4;
     --badge-lim-fg:  #16A34A;
 }
-/* ── CSS 변수: 다크 모드 오버라이드 ────────────────────────── */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --bg-app:        #0F172A;
-        --bg-card:       #1E293B;
-        --bg-subtle:     #243047;
-        --bg-bar:        #1E293B;
-        --border:        #334155;
-        --text-primary:  #F1F5F9;
-        --text-heading:  #E2E8F0;
-        --text-muted:    #94A3B8;
-        --text-faint:    #64748B;
-        --text-body:     #CBD5E1;
-        --text-detail:   #94A3B8;
-        --badge-rate-bg: #1E3A5F;
-        --badge-rate-fg: #93C5FD;
-        --badge-lim-bg:  #14532D;
-        --badge-lim-fg:  #86EFAC;
-    }
+/* ── CSS 변수: 다크 모드 오버라이드 (시스템 + Streamlit 둘 다 대응) ─ */
+@media (prefers-color-scheme: dark) { :root {
+    --bg-subtle:     #1E293B;
+    --border:        #334155;
+    --text-muted:    #94A3B8;
+    --text-body:     #CBD5E1;
+    --badge-rate-bg: #1E3A5F;
+    --badge-rate-fg: #93C5FD;
+    --badge-lim-bg:  #14532D;
+    --badge-lim-fg:  #86EFAC;
+}}
+[data-theme="dark"] {
+    --bg-subtle:     #1E293B;
+    --border:        #334155;
+    --text-muted:    #94A3B8;
+    --text-body:     #CBD5E1;
+    --badge-rate-bg: #1E3A5F;
+    --badge-rate-fg: #93C5FD;
+    --badge-lim-bg:  #14532D;
+    --badge-lim-fg:  #86EFAC;
 }
-/* ── 앱 전체 ────────────────────────────────────────────────── */
-.stApp { background-color: var(--bg-app); }
+/* ── 카드 컨테이너 ──────────────────────────────────────────── */
 div[data-testid="stVerticalBlockBorderWrapper"] {
-    background: var(--bg-card); border-radius: 14px;
-    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    border: 1.5px solid var(--border) !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     padding: 20px; margin-bottom: 16px;
 }
-h1 { color: var(--text-primary); font-weight: 800; }
-h2 { color: var(--text-heading); font-weight: 700; }
-h3 { color: var(--text-heading); font-weight: 700; }
+/* ── 배지·공통 ─────────────────────────────────────────────── */
 .risk-badge {
     display: inline-block; padding: 5px 18px;
     border-radius: 30px; font-weight: 800; font-size: 1.4rem;
 }
 .metric-label { color: var(--text-muted); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
 .metric-value { font-size: 2.2rem; font-weight: 900; line-height: 1.1; }
+/* ── 탭 ────────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab"] {
     font-size: 1.05rem; font-weight: 700; height: 48px;
     border-radius: 8px; border: 1px solid var(--border); padding: 0 22px;
 }
-.stTabs [aria-selected="true"] { background-color: #0F172A !important; color: white !important; }
+.stTabs [aria-selected="true"] { background-color: #1E293B !important; color: white !important; }
 @media (prefers-color-scheme: dark) {
     .stTabs [aria-selected="true"] { background-color: #3B82F6 !important; }
 }
+[data-theme="dark"] .stTabs [aria-selected="true"] { background-color: #3B82F6 !important; }
+/* ── 버튼 ──────────────────────────────────────────────────── */
 div.stButton > button {
     background: #2563EB; color: white; border-radius: 10px;
     font-weight: 700; font-size: 1.05rem; border: none; width: 100%; padding: 13px;
