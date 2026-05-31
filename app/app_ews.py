@@ -137,9 +137,13 @@ st.markdown("""
 /* ── CSS 변수: 라이트 모드 기본값 ──────────────────────────── */
 :root {
     --bg-subtle:     #F8FAFC;
+    --bg-bar:        #E2E8F0;
     --border:        #E2E8F0;
+    --text-primary:  #0F172A;
     --text-muted:    #64748B;
+    --text-faint:    #94A3B8;
     --text-body:     #334155;
+    --text-detail:   #475569;
     --badge-rate-bg: #EFF6FF;
     --badge-rate-fg: #2563EB;
     --badge-lim-bg:  #F0FDF4;
@@ -148,9 +152,13 @@ st.markdown("""
 /* ── CSS 변수: 다크 모드 오버라이드 (시스템 + Streamlit 둘 다 대응) ─ */
 @media (prefers-color-scheme: dark) { :root {
     --bg-subtle:     #1E293B;
+    --bg-bar:        #0F172A;
     --border:        #334155;
+    --text-primary:  #F1F5F9;
     --text-muted:    #94A3B8;
+    --text-faint:    #64748B;
     --text-body:     #CBD5E1;
+    --text-detail:   #94A3B8;
     --badge-rate-bg: #1E3A5F;
     --badge-rate-fg: #93C5FD;
     --badge-lim-bg:  #14532D;
@@ -158,9 +166,13 @@ st.markdown("""
 }}
 [data-theme="dark"] {
     --bg-subtle:     #1E293B;
+    --bg-bar:        #0F172A;
     --border:        #334155;
+    --text-primary:  #F1F5F9;
     --text-muted:    #94A3B8;
+    --text-faint:    #64748B;
     --text-body:     #CBD5E1;
+    --text-detail:   #94A3B8;
     --badge-rate-bg: #1E3A5F;
     --badge-rate-fg: #93C5FD;
     --badge-lim-bg:  #14532D;
