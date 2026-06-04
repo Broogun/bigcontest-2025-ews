@@ -2,6 +2,8 @@
 ### ML 탐지 · SHAP 설명 · EWS 동일 업종 비교 · LLM 경영 진단
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://bigcontest-2025-ews-5yrcwa6beml2fdp7czwez9.streamlit.app)
+[![Report](https://img.shields.io/badge/최종%20보고서-PDF-blue?logo=adobeacrobatreader&logoColor=white)](https://github.com/Broogun/bigcontest-2025-ews/raw/main/docs/보고서_성동구_소상공인_경영위기_조기경보_시스템.pdf)
+[![PPT](https://img.shields.io/badge/발표자료-PDF-orange?logo=microsoftpowerpoint&logoColor=white)](https://github.com/Broogun/bigcontest-2025-ews/raw/main/docs/발표자료_P실무프로젝트.pdf)
 
 > **2025 빅콘테스트 AI데이터 분석분야**  
 > 우리 동네 가맹점, 위기 신호를 미리 잡아라!  
