@@ -1,4 +1,4 @@
-# 성동구 소상공인 경영위기 조기경보 시스템 (EWS)
+# 성동구 소상공인 경영위기 페업 조기경보 시스템 (EWS)
 ### ML 탐지 · SHAP 설명 · EWS 동일 업종 비교 · LLM 경영 진단
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://bigcontest-2025-ews-5yrcwa6beml2fdp7czwez9.streamlit.app)
